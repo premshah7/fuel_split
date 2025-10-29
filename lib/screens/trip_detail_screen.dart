@@ -84,6 +84,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     final String message = """
                       Hi ${passenger.name},
                       Here is the summary for our recent trip:
+                      
                       🚗 *Trip Details*
                       - *From:* ${widget.trip.startLocation}
                       - *To:* ${widget.trip.endLocation}
