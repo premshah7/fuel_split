@@ -5,7 +5,7 @@ class TripCard extends StatelessWidget {
   final Trip trip;
   final List<Passenger> passengers;
 
-  const TripCard({super.key, required this.trip, required this.passengers});
+  const TripCard({super.key, required this.trip, required this.passengers, FuelLog? fuelLog});
 
   @override
   Widget build(BuildContext context) {

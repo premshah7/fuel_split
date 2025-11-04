@@ -31,21 +31,49 @@ class _TripListScreenState extends State<TripListScreen> {
             itemCount: trips.length,
             itemBuilder: (context, index) {
               final trip = trips[index];
-              return FutureBuilder<List<Passenger>>(
-                future: database.getPassengersForTrip(trip.id),
-                builder: (context, passengerSnapshot) {
-                  final passengers = passengerSnapshot.data ?? [];
+              return FutureBuilder<TripCardBundle>(
+                future: DatabaseService.getTripCardDetails(trip.id),
+                builder: (context, cardBundleSnapshot) {
+                  if (!cardBundleSnapshot.hasData) {
+                    return Opacity(
+                      opacity: 0.5,
+                      child: TripCard(trip: trip, passengers: const [], fuelLog: null),
+                    );
+                  }
+
+                  final cardData = cardBundleSnapshot.data!;
                   return GestureDetector(
                     onTap: () {
-                      // Simple navigation without waiting for a result
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => TripDetailScreen(trip: trip),
+                        MaterialPageRoute(builder: (context) => TripDetailScreen(trip: trip)),
+                      );
+                    },
+                    onLongPress: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Delete Trip?'),
+                          content: const Text('Are you sure you want to permanently delete this trip and all its associated data?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                              onPressed: () {
+                                DatabaseService.deleteTrip(trip.id);
+                                Navigator.of(ctx).pop();
+                              },
+                              child: const Text('Delete'),
+                            ),
+                          ],
                         ),
                       );
                     },
-                    child: TripCard(trip: trip, passengers: passengers),
+                    child: TripCard(
+                      trip: trip,
+                      passengers: cardData.passengers,
+                      fuelLog: cardData.fuelLog,
+                    ),
                   );
                 },
               );
@@ -53,9 +81,6 @@ class _TripListScreenState extends State<TripListScreen> {
           );
         },
       ),
-      // In lib/screens/trip_list_screen.dart
-
-      // In lib/screens/trip_list_screen.dart
 
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'trips_fab',

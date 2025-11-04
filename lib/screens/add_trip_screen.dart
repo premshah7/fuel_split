@@ -1,9 +1,9 @@
-import 'package:fuel_split/services/exports.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:fuel_split/services/exports.dart';
 
 class AddTripScreen extends StatefulWidget {
-  const AddTripScreen({super.key});
-
+  final Trip? tripToEdit;
+  const AddTripScreen({super.key, this.tripToEdit});
   @override
   State<AddTripScreen> createState() => _AddTripScreenState();
 }
@@ -15,26 +15,29 @@ class _AddTripScreenState extends State<AddTripScreen> {
   final _distanceController = TextEditingController();
   final _mileageController = TextEditingController();
   final _fuelPriceController = TextEditingController();
+  final _otherCostsController = TextEditingController(text: '0.0');
+
   late final StreamSubscription _passengerSub;
   List<Passenger> _allPassengers = [];
   final List<Passenger> _selectedPassengers = [];
   bool _isRoundTrip = false;
 
+  bool get _isEditMode => widget.tripToEdit != null;
 
   @override
   void initState() {
     super.initState();
     _passengerSub = database.watchAllPassengers().listen((passengers) {
-      if (mounted) {
-        setState(() {
-          _allPassengers = passengers;
-        });
-      }
-    });
-    // Fetch all available passengers to display in the selector
-    database.watchAllPassengers().first.then((passengers) {
       if (mounted) setState(() => _allPassengers = passengers);
     });
+
+    if (_isEditMode) {
+      _startLocationController.text = widget.tripToEdit!.startLocation;
+      _endLocationController.text = widget.tripToEdit!.endLocation;
+      _distanceController.text = widget.tripToEdit!.distance.toString();
+      _otherCostsController.text = widget.tripToEdit!.otherCosts.toString();
+      _isRoundTrip = widget.tripToEdit!.isRoundTrip;
+    }
   }
 
   @override
@@ -45,13 +48,13 @@ class _AddTripScreenState extends State<AddTripScreen> {
     _distanceController.dispose();
     _mileageController.dispose();
     _fuelPriceController.dispose();
+    _otherCostsController.dispose();
     super.dispose();
   }
 
   void _showAddPassengerDialog() {
     final nameController = TextEditingController();
     final contactController = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) {
@@ -61,14 +64,11 @@ class _AddTripScreenState extends State<AddTripScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- OPTION 1: CHOOSE FROM CONTACTS ---
               ElevatedButton.icon(
                 icon: const Icon(Icons.contact_phone_outlined),
                 label: const Text('Choose from Contacts'),
                 onPressed: () {
-                  // Close this dialog first
                   Navigator.of(context).pop();
-                  // Then, call our contact picker logic
                   ContactService.pickContactAndSave(context);
                 },
                 style: ElevatedButton.styleFrom(
@@ -78,39 +78,16 @@ class _AddTripScreenState extends State<AddTripScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Row(
-                children: [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text('OR'),
-                  ),
-                  Expanded(child: Divider()),
-                ],
-              ),
+              const Row(children: [Expanded(child: Divider()), Padding(padding: EdgeInsets.symmetric(horizontal: 8.0), child: Text('OR')), Expanded(child: Divider())]),
               const SizedBox(height: 8),
-
-              // --- OPTION 2: ENTER MANUALLY ---
               Text('Enter Manually', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 8),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
-                autofocus: true,
-              ),
-              TextField(
-                controller: contactController,
-                decoration: const InputDecoration(labelText: 'Contact Number (Optional)'),
-                keyboardType: TextInputType.phone,
-              ),
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Name'), autofocus: true),
+              TextField(controller: contactController, decoration: const InputDecoration(labelText: 'Contact Number (Optional)'), keyboardType: TextInputType.phone),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            // This button is now only for the manual entry fields
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () {
                 final name = nameController.text;
@@ -131,105 +108,95 @@ class _AddTripScreenState extends State<AddTripScreen> {
     );
   }
 
+
   void _showCostInputDialogAndSave() {
     if (_formKey.currentState!.validate()) {
-      if (_selectedPassengers.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select at least one passenger.')),
-        );
+      if (!_isEditMode && _selectedPassengers.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select at least one passenger.')));
         return;
       }
-
-      // Show a dialog to get the final cost info
+      if (_isEditMode) {
+        _calculateAndSaveTrip();
+        return;
+      }
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Enter Cost Details'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _mileageController,
-                decoration: const InputDecoration(labelText: 'Vehicle Mileage (km/l)'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: _fuelPriceController,
-                decoration: const InputDecoration(labelText: 'Fuel Price (per liter)'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
+          title: const Text('Enter Fuel Price'),
+          content: TextField(
+            controller: _fuelPriceController,
+            decoration: const InputDecoration(labelText: 'Fuel Price (per liter)'),
+            keyboardType: TextInputType.number,
+            autofocus: true,
           ),
           actions: [
             TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(ctx).pop(); // Close dialog
-                _calculateAndSaveTrip(); // Proceed to save
-              },
-              child: const Text('Calculate & Save'),
-            ),
+            ElevatedButton(onPressed: () { Navigator.of(ctx).pop(); _calculateAndSaveTrip(); }, child: const Text('Calculate & Save')),
           ],
         ),
       );
     }
   }
 
-
-
   void _calculateAndSaveTrip() {
-    // Get the single-journey distance from the user input
-    double oneWayDistance = double.tryParse(_distanceController.text) ?? 0.0;
-    final double mileage = double.tryParse(_mileageController.text) ?? 0.0;
-    final double fuelPrice = double.tryParse(_fuelPriceController.text) ?? 0.0;
-    final double finalDistanceInKm = _isRoundTrip ? oneWayDistance * 2 : oneWayDistance;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
 
-    // Create a note to clarify the trip type
-    final String tripNote = _isRoundTrip
-        ? 'Round trip from ${_startLocationController.text} to ${_endLocationController.text} and back.'
-        : '';
+    final oneWayDistance = double.tryParse(_distanceController.text) ?? 0.0;
+    final otherCosts = double.tryParse(_otherCostsController.text) ?? 0.0;
+    final finalDistanceInKm = _isRoundTrip && !_isEditMode ? oneWayDistance * 2 : oneWayDistance;
+    final tripNote = _isRoundTrip ? 'Round trip from ${_startLocationController.text} to ${_endLocationController.text} and back.' : '';
 
-    if (finalDistanceInKm <= 0 || mileage <= 0 || fuelPrice <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid numbers for distance and costs.')));
+    if (finalDistanceInKm <= 0) {
+      messenger.showSnackBar(const SnackBar(content: Text('Please enter a valid distance.')));
       return;
     }
 
-    // All subsequent calculations now use the 'finalDistanceInKm'
-    final double totalLitersUsed = finalDistanceInKm / mileage;
-    final double totalFuelCost = totalLitersUsed * fuelPrice;
-    final double costPerPassenger = totalFuelCost / _selectedPassengers.length;
-    final newTrip = TripsCompanion(
-      startLocation: drift.Value(_startLocationController.text),
-      endLocation: drift.Value(_endLocationController.text),
-      distance: drift.Value(finalDistanceInKm), // Save the final (possibly doubled) distance
-      tripDate: drift.Value(DateTime.now()),
-      isRoundTrip: drift.Value(_isRoundTrip), // Save the flag to the database
-      notes: drift.Value(tripNote), // Add our descriptive note
-    );
+    if (_isEditMode) {
+      DatabaseService.updateTrip(
+        widget.tripToEdit!.id,
+        startLocation: _startLocationController.text,
+        endLocation: _endLocationController.text,
+        distance: double.tryParse(_distanceController.text) ?? 0.0, // In edit mode, distance is the total distance
+        isRoundTrip: _isRoundTrip,
+        notes: tripNote,
+        otherCosts: otherCosts,
+      ).then((_) {
+        messenger.showSnackBar(const SnackBar(content: Text('Trip updated successfully!')));
+        navigator.pop();
+      });
+    } else {
+      final mileage = double.tryParse(_mileageController.text) ?? 0.0;
+      final fuelPrice = double.tryParse(_fuelPriceController.text) ?? 0.0;
+      if (mileage <= 0 || fuelPrice <= 0) {
+        messenger.showSnackBar(const SnackBar(content: Text('Please enter valid mileage and price.')));
+        return;
+      }
 
-    database.createTripWithPassengers(newTrip, _selectedPassengers,costPerPassenger).then((tripId) {
-      final consumptionLog = FuelLogsCompanion(
-        amountLiters: drift.Value(totalLitersUsed),
-        totalCost: drift.Value(totalFuelCost),
-        logDate: drift.Value(DateTime.now()),
-        isTripConsumption: drift.Value(true),
-        tripId: drift.Value(tripId),
-      );
-      database.insertFuelLog(consumptionLog);
+      final totalLitersUsed = finalDistanceInKm / mileage;
+      final totalFuelCost = totalLitersUsed * fuelPrice;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Manual trip saved successfully!')),
-      );
-      Navigator.of(context).pop(); // Go back to the trip list screen
-    });
+      DatabaseService.createTripWithLog(
+        startLocation: _startLocationController.text,
+        endLocation: _endLocationController.text,
+        distance: finalDistanceInKm,
+        isRoundTrip: _isRoundTrip,
+        notes: tripNote,
+        passengers: _selectedPassengers,
+        totalFuelCost: totalFuelCost,
+        totalLitersUsed: totalLitersUsed,
+        otherCosts: otherCosts,
+      ).then((_) {
+        messenger.showSnackBar(const SnackBar(content: Text('Manual trip saved successfully!')));
+        navigator.pop();
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Trip Manually'),
-      ),
+      appBar: AppBar(title: Text(_isEditMode ? 'Edit Trip' : 'Add Trip Manually')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -237,79 +204,44 @@ class _AddTripScreenState extends State<AddTripScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Trip Details', style: Theme.of(context).textTheme.titleLarge),
+              TextFormField(controller: _startLocationController, decoration: const InputDecoration(labelText: 'Start Location'), validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _startLocationController,
-                decoration: const InputDecoration(labelText: 'Start Location'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
+              TextFormField(controller: _endLocationController, decoration: const InputDecoration(labelText: 'End Location'), validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _endLocationController,
-                decoration: const InputDecoration(labelText: 'End Location'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _distanceController,
-                decoration: const InputDecoration(labelText: 'Distance (km)'),
-                keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
+              if (!_isEditMode)
+                TextFormField(controller: _mileageController, decoration: const InputDecoration(labelText: 'Vehicle Mileage (km/l)'), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Required' : null),
+              if (!_isEditMode) const SizedBox(height: 16),
+              TextFormField(controller: _distanceController, decoration: InputDecoration(labelText: _isEditMode ? 'Total Distance (km)' : 'Distance (km) - One Way'), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 8),
-              SwitchListTile(
-                title: const Text('Round Trip'),
-                value: _isRoundTrip,
-                onChanged: (bool value) {
-                  setState(() {
-                    _isRoundTrip = value;
-                  });
-                },
-                secondary: const Icon(Icons.sync_alt),
-              ),
-
+              SwitchListTile(title: const Text('Round Trip'), value: _isRoundTrip, onChanged: (bool value) => setState(() => _isRoundTrip = value), secondary: const Icon(Icons.sync_alt)),
+              const SizedBox(height: 16),
+              TextFormField(controller: _otherCostsController, decoration: const InputDecoration(labelText: 'Other Costs (Tolls, etc.)'), keyboardType: TextInputType.number),
               const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Select Passengers', style: Theme.of(context).textTheme.titleLarge),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle),
-                    onPressed: _showAddPassengerDialog,
-                    tooltip: 'Add New Passenger',
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ],
-              ),
-              // const SizedBox(height: 8),
-              if (_allPassengers.isEmpty)
-                const Text('No passengers available. Please add passengers first.')
-              else
-                Wrap(
+              if (!_isEditMode) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Select Passengers', style: Theme.of(context).textTheme.titleLarge),
+                    IconButton(icon: const Icon(Icons.add_circle), onPressed: _showAddPassengerDialog, color: Theme.of(context).primaryColor),
+                  ],
+                ),
+                if (_allPassengers.isEmpty) const Text('No passengers available.') else Wrap(
                   spacing: 8.0,
                   children: _allPassengers.map((passenger) {
                     final isSelected = _selectedPassengers.contains(passenger);
                     return FilterChip(
                       label: Text(passenger.name),
                       selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() {
-                          if (selected) {
-                            _selectedPassengers.add(passenger);
-                          } else {
-                            _selectedPassengers.remove(passenger);
-                          }
-                        });
-                      },
+                      onSelected: (selected) => setState(() => selected ? _selectedPassengers.add(passenger) : _selectedPassengers.remove(passenger)),
                     );
                   }).toList(),
                 ),
+              ],
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _showCostInputDialogAndSave,
                 style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: const Text('Next: Add Costs'),
+                child: Text(_isEditMode ? 'Save Changes' : 'Next: Add Fuel Price'),
               ),
             ],
           ),

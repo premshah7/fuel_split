@@ -9,6 +9,12 @@ import 'package:path/path.dart' as p;
 part 'database.g.dart';
 
 // --- TABLE DEFINITIONS ---
+// class Vehicles extends Table {
+//   IntColumn get id => integer().autoIncrement()();
+//   TextColumn get name => text().withLength(min: 1, max: 50)();
+//   RealColumn get defaultMileage => real()(); // in km/l
+// }
+
 class FuelLogs extends Table {
   IntColumn get id => integer().autoIncrement()();
   RealColumn get amountLiters => real()();
@@ -27,6 +33,7 @@ class Trips extends Table {
   DateTimeColumn get tripDate => dateTime()();
   TextColumn get notes => text().nullable()();
   BoolColumn get isRoundTrip => boolean().withDefault(const Constant(false))();
+   RealColumn get otherCosts => real().withDefault(const Constant(0.0))();
 }
 
 class Passengers extends Table {
@@ -58,7 +65,8 @@ class AppDatabase extends _$AppDatabase {
   Future<int> insertPassenger(PassengersCompanion passenger) => into(passengers).insert(passenger);
   Future<int> deletePassenger(int id) => (delete(passengers)..where((tbl) => tbl.id.equals(id))).go();
   Stream<List<Trip>> watchAllTrips() => (select(trips)..orderBy([(t) => OrderingTerm(expression: t.tripDate, mode: OrderingMode.desc)])).watch();
-
+  Future<int> deleteFuelLog(int logId) => (delete(fuelLogs)..where((tbl) => tbl.id.equals(logId))).go();
+  Future<bool> updateTrip(TripsCompanion trip) => update(trips).replace(trip);
   Future<FuelLog?> getFuelLogForTrip(int tripId) => (select(fuelLogs)..where((tbl) => tbl.tripId.equals(tripId) & tbl.isTripConsumption.equals(true))).getSingleOrNull();
 
   Future<List<Passenger>> getPassengersForTrip(int tripId) {
@@ -81,7 +89,15 @@ class AppDatabase extends _$AppDatabase {
       return tripId;
     });
   }
+  Future<void> deleteTripAndAssociations(int tripId) {
+    return transaction(() async {
+      await (delete(tripPassengers)..where((tbl) => tbl.tripId.equals(tripId))).go();
+      await (delete(fuelLogs)..where((tbl) => tbl.tripId.equals(tripId))).go();
+      await (delete(trips)..where((tbl) => tbl.id.equals(tripId))).go();
+    });
+  }
 }
+
 
 // --- CONNECTION FUNCTION ---
 LazyDatabase _openConnection() {

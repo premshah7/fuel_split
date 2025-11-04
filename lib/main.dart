@@ -1,5 +1,5 @@
-import 'package:fuel_split/services/exports.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fuel_split/services/exports.dart';
 
 late AppDatabase database;
 
@@ -8,11 +8,9 @@ void main() {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-// NEW: Define our color scheme
-const Color primaryColor = Color(0xFF00897B); // A nice Teal/Green
-const Color accentColor = Color(0xFFFDD835);  // A complementary Yellow
+const Color primaryColor = Color(0xFF00897B);
+const Color accentColor = Color(0xFFFDD835);
 
-// NEW: Define the Light Theme
 ThemeData lightTheme = ThemeData(
   brightness: Brightness.light,
   primaryColor: primaryColor,
@@ -46,7 +44,6 @@ ThemeData lightTheme = ThemeData(
   useMaterial3: true,
 );
 
-// NEW: Define the Dark Theme
 ThemeData darkTheme = ThemeData(
   brightness: Brightness.dark,
   primaryColor: primaryColor,
@@ -88,28 +85,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Fuel Tracker',
-      // MODIFIED: Apply the new themes
       theme: lightTheme,
       darkTheme: darkTheme,
-      themeMode: ThemeMode.system, // Automatically switch based on system settings
+      themeMode: ThemeMode.system,
       home: const HomeScreen(),
     );
   }
 }
-
-// class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       debugShowCheckedModeBanner: false,
-//       title: 'Fuel Tracker',
-//       theme: ThemeData(
-//         primarySwatch: Colors.blue,
-//         visualDensity: VisualDensity.adaptivePlatformDensity,
-//       ),
-//       home: const HomeScreen(), // Change this line
-//     );
-//   }
-// }

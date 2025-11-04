@@ -97,6 +97,18 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _otherCostsMeta = const VerificationMeta(
+    'otherCosts',
+  );
+  @override
+  late final GeneratedColumn<double> otherCosts = GeneratedColumn<double>(
+    'other_costs',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -106,6 +118,7 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
     tripDate,
     notes,
     isRoundTrip,
+    otherCosts,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -175,6 +188,12 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
         ),
       );
     }
+    if (data.containsKey('other_costs')) {
+      context.handle(
+        _otherCostsMeta,
+        otherCosts.isAcceptableOrUnknown(data['other_costs']!, _otherCostsMeta),
+      );
+    }
     return context;
   }
 
@@ -212,6 +231,10 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_round_trip'],
       )!,
+      otherCosts: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}other_costs'],
+      )!,
     );
   }
 
@@ -229,6 +252,7 @@ class Trip extends DataClass implements Insertable<Trip> {
   final DateTime tripDate;
   final String? notes;
   final bool isRoundTrip;
+  final double otherCosts;
   const Trip({
     required this.id,
     required this.startLocation,
@@ -237,6 +261,7 @@ class Trip extends DataClass implements Insertable<Trip> {
     required this.tripDate,
     this.notes,
     required this.isRoundTrip,
+    required this.otherCosts,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -250,6 +275,7 @@ class Trip extends DataClass implements Insertable<Trip> {
       map['notes'] = Variable<String>(notes);
     }
     map['is_round_trip'] = Variable<bool>(isRoundTrip);
+    map['other_costs'] = Variable<double>(otherCosts);
     return map;
   }
 
@@ -264,6 +290,7 @@ class Trip extends DataClass implements Insertable<Trip> {
           ? const Value.absent()
           : Value(notes),
       isRoundTrip: Value(isRoundTrip),
+      otherCosts: Value(otherCosts),
     );
   }
 
@@ -280,6 +307,7 @@ class Trip extends DataClass implements Insertable<Trip> {
       tripDate: serializer.fromJson<DateTime>(json['tripDate']),
       notes: serializer.fromJson<String?>(json['notes']),
       isRoundTrip: serializer.fromJson<bool>(json['isRoundTrip']),
+      otherCosts: serializer.fromJson<double>(json['otherCosts']),
     );
   }
   @override
@@ -293,6 +321,7 @@ class Trip extends DataClass implements Insertable<Trip> {
       'tripDate': serializer.toJson<DateTime>(tripDate),
       'notes': serializer.toJson<String?>(notes),
       'isRoundTrip': serializer.toJson<bool>(isRoundTrip),
+      'otherCosts': serializer.toJson<double>(otherCosts),
     };
   }
 
@@ -304,6 +333,7 @@ class Trip extends DataClass implements Insertable<Trip> {
     DateTime? tripDate,
     Value<String?> notes = const Value.absent(),
     bool? isRoundTrip,
+    double? otherCosts,
   }) => Trip(
     id: id ?? this.id,
     startLocation: startLocation ?? this.startLocation,
@@ -312,6 +342,7 @@ class Trip extends DataClass implements Insertable<Trip> {
     tripDate: tripDate ?? this.tripDate,
     notes: notes.present ? notes.value : this.notes,
     isRoundTrip: isRoundTrip ?? this.isRoundTrip,
+    otherCosts: otherCosts ?? this.otherCosts,
   );
   Trip copyWithCompanion(TripsCompanion data) {
     return Trip(
@@ -328,6 +359,9 @@ class Trip extends DataClass implements Insertable<Trip> {
       isRoundTrip: data.isRoundTrip.present
           ? data.isRoundTrip.value
           : this.isRoundTrip,
+      otherCosts: data.otherCosts.present
+          ? data.otherCosts.value
+          : this.otherCosts,
     );
   }
 
@@ -340,7 +374,8 @@ class Trip extends DataClass implements Insertable<Trip> {
           ..write('distance: $distance, ')
           ..write('tripDate: $tripDate, ')
           ..write('notes: $notes, ')
-          ..write('isRoundTrip: $isRoundTrip')
+          ..write('isRoundTrip: $isRoundTrip, ')
+          ..write('otherCosts: $otherCosts')
           ..write(')'))
         .toString();
   }
@@ -354,6 +389,7 @@ class Trip extends DataClass implements Insertable<Trip> {
     tripDate,
     notes,
     isRoundTrip,
+    otherCosts,
   );
   @override
   bool operator ==(Object other) =>
@@ -365,7 +401,8 @@ class Trip extends DataClass implements Insertable<Trip> {
           other.distance == this.distance &&
           other.tripDate == this.tripDate &&
           other.notes == this.notes &&
-          other.isRoundTrip == this.isRoundTrip);
+          other.isRoundTrip == this.isRoundTrip &&
+          other.otherCosts == this.otherCosts);
 }
 
 class TripsCompanion extends UpdateCompanion<Trip> {
@@ -376,6 +413,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
   final Value<DateTime> tripDate;
   final Value<String?> notes;
   final Value<bool> isRoundTrip;
+  final Value<double> otherCosts;
   const TripsCompanion({
     this.id = const Value.absent(),
     this.startLocation = const Value.absent(),
@@ -384,6 +422,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     this.tripDate = const Value.absent(),
     this.notes = const Value.absent(),
     this.isRoundTrip = const Value.absent(),
+    this.otherCosts = const Value.absent(),
   });
   TripsCompanion.insert({
     this.id = const Value.absent(),
@@ -393,6 +432,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     required DateTime tripDate,
     this.notes = const Value.absent(),
     this.isRoundTrip = const Value.absent(),
+    this.otherCosts = const Value.absent(),
   }) : startLocation = Value(startLocation),
        endLocation = Value(endLocation),
        distance = Value(distance),
@@ -405,6 +445,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     Expression<DateTime>? tripDate,
     Expression<String>? notes,
     Expression<bool>? isRoundTrip,
+    Expression<double>? otherCosts,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -414,6 +455,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
       if (tripDate != null) 'trip_date': tripDate,
       if (notes != null) 'notes': notes,
       if (isRoundTrip != null) 'is_round_trip': isRoundTrip,
+      if (otherCosts != null) 'other_costs': otherCosts,
     });
   }
 
@@ -425,6 +467,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     Value<DateTime>? tripDate,
     Value<String?>? notes,
     Value<bool>? isRoundTrip,
+    Value<double>? otherCosts,
   }) {
     return TripsCompanion(
       id: id ?? this.id,
@@ -434,6 +477,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
       tripDate: tripDate ?? this.tripDate,
       notes: notes ?? this.notes,
       isRoundTrip: isRoundTrip ?? this.isRoundTrip,
+      otherCosts: otherCosts ?? this.otherCosts,
     );
   }
 
@@ -461,6 +505,9 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     if (isRoundTrip.present) {
       map['is_round_trip'] = Variable<bool>(isRoundTrip.value);
     }
+    if (otherCosts.present) {
+      map['other_costs'] = Variable<double>(otherCosts.value);
+    }
     return map;
   }
 
@@ -473,7 +520,8 @@ class TripsCompanion extends UpdateCompanion<Trip> {
           ..write('distance: $distance, ')
           ..write('tripDate: $tripDate, ')
           ..write('notes: $notes, ')
-          ..write('isRoundTrip: $isRoundTrip')
+          ..write('isRoundTrip: $isRoundTrip, ')
+          ..write('otherCosts: $otherCosts')
           ..write(')'))
         .toString();
   }
@@ -1516,6 +1564,7 @@ typedef $$TripsTableCreateCompanionBuilder =
       required DateTime tripDate,
       Value<String?> notes,
       Value<bool> isRoundTrip,
+      Value<double> otherCosts,
     });
 typedef $$TripsTableUpdateCompanionBuilder =
     TripsCompanion Function({
@@ -1526,6 +1575,7 @@ typedef $$TripsTableUpdateCompanionBuilder =
       Value<DateTime> tripDate,
       Value<String?> notes,
       Value<bool> isRoundTrip,
+      Value<double> otherCosts,
     });
 
 final class $$TripsTableReferences
@@ -1610,6 +1660,11 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
 
   ColumnFilters<bool> get isRoundTrip => $composableBuilder(
     column: $table.isRoundTrip,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get otherCosts => $composableBuilder(
+    column: $table.otherCosts,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1707,6 +1762,11 @@ class $$TripsTableOrderingComposer
     column: $table.isRoundTrip,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get otherCosts => $composableBuilder(
+    column: $table.otherCosts,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TripsTableAnnotationComposer
@@ -1742,6 +1802,11 @@ class $$TripsTableAnnotationComposer
 
   GeneratedColumn<bool> get isRoundTrip => $composableBuilder(
     column: $table.isRoundTrip,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get otherCosts => $composableBuilder(
+    column: $table.otherCosts,
     builder: (column) => column,
   );
 
@@ -1831,6 +1896,7 @@ class $$TripsTableTableManager
                 Value<DateTime> tripDate = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<bool> isRoundTrip = const Value.absent(),
+                Value<double> otherCosts = const Value.absent(),
               }) => TripsCompanion(
                 id: id,
                 startLocation: startLocation,
@@ -1839,6 +1905,7 @@ class $$TripsTableTableManager
                 tripDate: tripDate,
                 notes: notes,
                 isRoundTrip: isRoundTrip,
+                otherCosts: otherCosts,
               ),
           createCompanionCallback:
               ({
@@ -1849,6 +1916,7 @@ class $$TripsTableTableManager
                 required DateTime tripDate,
                 Value<String?> notes = const Value.absent(),
                 Value<bool> isRoundTrip = const Value.absent(),
+                Value<double> otherCosts = const Value.absent(),
               }) => TripsCompanion.insert(
                 id: id,
                 startLocation: startLocation,
@@ -1857,6 +1925,7 @@ class $$TripsTableTableManager
                 tripDate: tripDate,
                 notes: notes,
                 isRoundTrip: isRoundTrip,
+                otherCosts: otherCosts,
               ),
           withReferenceMapper: (p0) => p0
               .map(

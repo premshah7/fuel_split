@@ -3,6 +3,11 @@ export 'package:fuel_split/data/database.dart';
 export 'package:fuel_split/data/trip_details_bundle.dart';
 export 'package:fuel_split/main.dart';
 
+//:::::MODELS:::::
+export 'package:fuel_split/models/passenger_trip_detail.dart';
+export 'package:fuel_split/models/trip_card_bundle.dart';
+//
+
 //:::::SCREENS::::
 export 'package:fuel_split/screens/add_fuel_log_screen.dart';
 export 'package:fuel_split/screens/add_trip_screen.dart';
@@ -13,6 +18,8 @@ export 'package:fuel_split/screens/passenger_list_sceen.dart';
 export 'package:fuel_split/screens/trip_detail_screen.dart';
 export 'package:fuel_split/screens/trip_list_screen.dart';
 export 'package:fuel_split/screens/passenger_provider.dart';
+export 'package:fuel_split/screens/dashboard_screen.dart';
+export 'package:fuel_split/screens/vehicles_screen.dart';
 //
 
 //:::::WIDGETS:::::
@@ -23,9 +30,8 @@ export 'package:fuel_split/widgets/passenger_card.dart';
 //
 
 //:::::TRIP LOGIC:::::
-export 'package:fuel_split/screens/live_trip_logic/live_trip_notifier.dart';
-export 'package:fuel_split/screens/live_trip_logic/live_trip_state.dart';
-
+// export 'package:fuel_split/screens/live_trip_logic/live_trip_notifier.dart';
+// export 'package:fuel_split/screens/live_trip_logic/live_trip_state.dart';
 //
 
 //:::::SERVICES:::::
