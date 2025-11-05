@@ -10,18 +10,14 @@ class TripDetailScreen extends StatefulWidget {
 }
 
 class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerProviderStateMixin {
-  Future<Map<String, dynamic>>? _tripDetailsFuture;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  final DatabaseService _dbService = DatabaseService();
 
   @override
   void initState() {
     super.initState();
-    _tripDetailsFuture = _fetchTripDetails();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
+    _animationController = AnimationController(duration: const Duration(milliseconds: 600), vsync: this);
     _fadeAnimation = CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
     _animationController.forward();
   }
@@ -30,12 +26,6 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
   void dispose() {
     _animationController.dispose();
     super.dispose();
-  }
-
-  Future<Map<String, dynamic>> _fetchTripDetails() async {
-    final passengers = await database.getPassengersForTrip(widget.trip.id);
-    final fuelLog = await database.getFuelLogForTrip(widget.trip.id);
-    return {'passengers': passengers, 'fuelLog': fuelLog};
   }
 
   @override
@@ -52,76 +42,32 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
                 context,
                 MaterialPageRoute(builder: (context) => AddTripScreen(tripToEdit: widget.trip)),
               ).then((_) {
-                setState(() {
-                  _tripDetailsFuture = _fetchTripDetails();
-                });
+                setState(() {});
               });
             },
             tooltip: 'Edit Trip',
           ),
         ],
       ),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _tripDetailsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError || !snapshot.hasData) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
-                  const SizedBox(height: 16),
-                  const Text('Error loading trip details.'),
-                ],
-              ),
-            );
-          }
-          final List<Passenger> passengers = snapshot.data!['passengers'];
-          final FuelLog? fuelLog = snapshot.data!['fuelLog'];
-          return _buildTripDetailsView(passengers, fuelLog);
-        },
-      ),
+      body: _buildTripDetailsView(),
     );
   }
 
-  Widget _buildTripDetailsView(List<Passenger> passengers, FuelLog? fuelLog) {
-    double totalFuelCost = fuelLog?.totalCost ?? 0.0;
-    double totalTripCost = totalFuelCost + widget.trip.otherCosts;
-    double costPerPassenger = 0;
-    double mileage = 0;
-
-    if (totalTripCost > 0 && passengers.isNotEmpty) {
-      costPerPassenger = totalTripCost / passengers.length;
-    }
-    if (fuelLog != null && fuelLog.amountLiters > 0) {
-      mileage = widget.trip.distance / fuelLog.amountLiters;
-    }
-
+  Widget _buildTripDetailsView() {
     return FadeTransition(
       opacity: _fadeAnimation,
       child: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          // --- Trip Route Card ---
           _buildRouteCard(context),
           const SizedBox(height: 16),
-
-          // --- Cost Summary Card ---
-          _buildCostSummaryCard(context, totalTripCost, costPerPassenger, mileage),
+          _buildCostSummaryCard(context),
           const SizedBox(height: 16),
-
-          // --- Passengers Card ---
-          if (passengers.isNotEmpty)
-            _buildPassengersCard(context, passengers, totalTripCost, costPerPassenger),
+          _buildPassengersCard(context),
         ],
       ),
     );
   }
-
-  // --- Helper Widgets for Building the Cards ---
 
   Widget _buildRouteCard(BuildContext context) {
     return Card(
@@ -155,7 +101,11 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildCostSummaryCard(BuildContext context, double totalTripCost, double costPerPassenger, double mileage) {
+  Widget _buildCostSummaryCard(BuildContext context) {
+    // In a full implementation, you would fetch the FuelLog and calculate mileage here.
+    // For now, we use the totalCost stored directly on the trip.
+    final costPerPassenger = widget.trip.passengerCount > 0 ? widget.trip.totalCost / widget.trip.passengerCount : 0.0;
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -166,16 +116,16 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
           children: [
             Text('Financial Summary', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            _buildDetailRow(context, 'Total Trip Cost', '₹${totalTripCost.toStringAsFixed(2)}', Icons.monetization_on, Colors.green),
+            _buildDetailRow(context, 'Total Trip Cost', '₹${widget.trip.totalCost.toStringAsFixed(2)}', Icons.monetization_on, Colors.green),
             _buildDetailRow(context, 'Cost / Person', costPerPassenger > 0 ? '₹${costPerPassenger.toStringAsFixed(2)}' : 'N/A', Icons.group, Colors.blue),
-            _buildDetailRow(context, 'Vehicle Mileage', mileage > 0 ? '${mileage.toStringAsFixed(1)} km/l' : 'N/A', Icons.local_gas_station, Colors.orange),
+            _buildDetailRow(context, 'Other Costs', '₹${widget.trip.otherCosts.toStringAsFixed(2)}', Icons.request_quote, Colors.orange),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPassengersCard(BuildContext context, List<Passenger> passengers, double totalTripCost, double costPerPassenger) {
+  Widget _buildPassengersCard(BuildContext context) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -186,31 +136,57 @@ class _TripDetailScreenState extends State<TripDetailScreen> with SingleTickerPr
           children: [
             Text('Passengers', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            ...passengers.map((passenger) {
-              final String message = """
-Hi ${passenger.name},
-Here is the summary for our recent trip:
-🚗 *Trip Details*
-- *From:* ${widget.trip.startLocation}
-- *To:* ${widget.trip.endLocation}
-- *Distance:* ${widget.trip.distance.toStringAsFixed(1)} km
-💰 *Cost Breakdown*
-- *Total Trip Cost:* ₹${totalTripCost.toStringAsFixed(2)}
-- *Your Share:* *₹${costPerPassenger.toStringAsFixed(2)}*
-Thanks for sharing the ride!
-""";
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(child: Text(passenger.name.isNotEmpty ? passenger.name[0] : '?')),
-                title: Text(passenger.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text('Share: ₹${costPerPassenger.toStringAsFixed(2)}'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.share, color: Colors.green),
-                  onPressed: () => SharingService.launchWhatsApp(context, passenger: passenger, message: message),
-                  tooltip: 'Share via WhatsApp',
-                ),
-              );
-            }).toList(),
+            // We use a StreamBuilder here to get the live payment status for passengers
+            StreamBuilder<List<TripPassengerDetail>>(
+              stream: _dbService.watchPassengersForTrip(widget.trip.id),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                final passengers = snapshot.data ?? [];
+                if (passengers.isEmpty) return const Text('No passengers on this trip.');
+
+                return Column(
+                  children: passengers.map((pax) {
+                    final String message = "Hi ${pax.name}, your share for the trip was ₹${pax.costShare.toStringAsFixed(2)}.";
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(child: Text(pax.name.isNotEmpty ? pax.name[0] : '?')),
+                      title: Text(pax.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text('Share: ₹${pax.costShare.toStringAsFixed(2)}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Payment Status Chip (Now interactive)
+                          InkWell(
+                            onTap: () {
+                              // Toggle the payment status
+                              _dbService.updatePassengerPaymentStatus(
+                                  tripId: widget.trip.id,
+                                  passengerDocId: pax.id,
+                                  newStatus: !pax.isPaid
+                              );
+                            },
+                            child: Chip(
+                              label: Text(pax.isPaid ? 'Paid' : 'Unpaid'),
+                              backgroundColor: pax.isPaid ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                              labelStyle: TextStyle(color: pax.isPaid ? Colors.green : Colors.orange),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.share, color: Colors.green),
+                            onPressed: () {
+                              // We need to fetch the full passenger object to get the contact number
+                              // This is a limitation of this data model, but we can work around it for the message.
+                              SharingService.launchWhatsApp(context, passenger: Passenger(id: pax.id, name: pax.name), message: message);
+                            },
+                            tooltip: 'Share via WhatsApp',
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
           ],
         ),
       ),

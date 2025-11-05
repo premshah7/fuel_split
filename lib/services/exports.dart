@@ -1,11 +1,14 @@
 //START FILES
-export 'package:fuel_split/data/database.dart';
-export 'package:fuel_split/data/trip_details_bundle.dart';
 export 'package:fuel_split/main.dart';
 
 //:::::MODELS:::::
 export 'package:fuel_split/models/passenger_trip_detail.dart';
 export 'package:fuel_split/models/trip_card_bundle.dart';
+export 'package:fuel_split/models/trip.dart';
+export 'package:fuel_split/models/passenger_model.dart';
+export 'package:fuel_split/models/fuel_log_model.dart';
+export 'package:fuel_split/models/trip_passenger_model.dart';
+export 'package:fuel_split/models/unsettled_debt_model.dart';
 //
 
 //:::::SCREENS::::
@@ -17,9 +20,10 @@ export 'package:fuel_split/screens/live_trip_screen.dart';
 export 'package:fuel_split/screens/passenger_list_sceen.dart';
 export 'package:fuel_split/screens/trip_detail_screen.dart';
 export 'package:fuel_split/screens/trip_list_screen.dart';
-export 'package:fuel_split/screens/passenger_provider.dart';
 export 'package:fuel_split/screens/dashboard_screen.dart';
 export 'package:fuel_split/screens/vehicles_screen.dart';
+export 'package:fuel_split/screens/login_screen.dart';
+export 'package:fuel_split/screens/signup_screen.dart';
 //
 
 //:::::WIDGETS:::::
@@ -39,6 +43,7 @@ export 'package:fuel_split/services/contact_service.dart';
 export 'package:fuel_split/services/sharing_service.dart';
 export 'package:fuel_split/services/location_service.dart';
 export 'package:fuel_split/services/database_service.dart';
+export 'package:fuel_split/services/auth_services.dart';
 //END
 
 

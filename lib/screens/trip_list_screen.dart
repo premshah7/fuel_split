@@ -9,15 +9,57 @@ class TripListScreen extends StatefulWidget {
 }
 
 class _TripListScreenState extends State<TripListScreen> {
+  final DatabaseService _dbService = DatabaseService();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Trips')),
+      appBar: AppBar(
+        title: const Text('Trips'),
+        // === THIS IS THE NEW SECTION ===
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              // Show a confirmation dialog before logging out
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Confirm Logout'),
+                  content: const Text('Are you sure you want to sign out?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                      onPressed: () {
+                        // Call our new service to sign the user out
+                        AuthService.signOut();
+                        // We don't need to navigate. The AuthWrapper in main.dart
+                        // will automatically detect the sign-out and show the LoginScreen.
+                        Navigator.of(ctx).pop(); // Close the dialog
+                      },
+                      child: const Text('Logout'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            tooltip: 'Logout',
+          ),
+        ],
+
+      ),
       body: StreamBuilder<List<Trip>>(
-        stream: database.watchAllTrips(),
+        stream: _dbService.watchAllTrips(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
           final trips = snapshot.data ?? [];
           if (trips.isEmpty) {
@@ -31,57 +73,43 @@ class _TripListScreenState extends State<TripListScreen> {
             itemCount: trips.length,
             itemBuilder: (context, index) {
               final trip = trips[index];
-              return FutureBuilder<TripCardBundle>(
-                future: DatabaseService.getTripCardDetails(trip.id),
-                builder: (context, cardBundleSnapshot) {
-                  if (!cardBundleSnapshot.hasData) {
-                    return Opacity(
-                      opacity: 0.5,
-                      child: TripCard(trip: trip, passengers: const [], fuelLog: null),
-                    );
-                  }
-
-                  final cardData = cardBundleSnapshot.data!;
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => TripDetailScreen(trip: trip)),
-                      );
-                    },
-                    onLongPress: () {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Delete Trip?'),
-                          content: const Text('Are you sure you want to permanently delete this trip and all its associated data?'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                              onPressed: () {
-                                DatabaseService.deleteTrip(trip.id);
-                                Navigator.of(ctx).pop();
-                              },
-                              child: const Text('Delete'),
-                            ),
-                          ],
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => TripDetailScreen(trip: trip)));
+                },
+                onLongPress: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Delete Trip?'),
+                      content: const Text('Are you sure you want to delete this trip?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                          onPressed: () {
+                            _dbService.deleteTrip(trip.id);
+                            Navigator.of(ctx).pop();
+                          },
+                          child: const Text('Delete'),
                         ),
-                      );
-                    },
-                    child: TripCard(
-                      trip: trip,
-                      passengers: cardData.passengers,
-                      fuelLog: cardData.fuelLog,
+                      ],
                     ),
                   );
                 },
+                child: Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ListTile(
+                    title: Text('${trip.startLocation} to ${trip.endLocation}'),
+                    subtitle: Text('${trip.distance.toStringAsFixed(1)} km'),
+                    trailing: Text('₹${trip.totalCost.toStringAsFixed(2)}'),
+                  ),
+                ),
               );
             },
           );
         },
       ),
-
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'trips_fab',
         onPressed: () {
@@ -93,14 +121,12 @@ class _TripListScreenState extends State<TripListScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // --- OPTION 1: LIVE TRIP WITH PASSENGERS ---
                     ListTile(
                       leading: const Icon(Icons.group),
                       title: const Text('Start Live Trip (With Passengers)'),
-                      subtitle: const Text('Select passengers and split the cost'),
                       onTap: () async {
-                        Navigator.of(ctx).pop(); // Close the bottom sheet
-                        final allPassengers = await database.watchAllPassengers().first;
+                        Navigator.of(ctx).pop();
+                        final allPassengers = await _dbService.watchAllPassengers().first;
                         if (!mounted) return;
 
                         if (allPassengers.isEmpty) {
@@ -114,58 +140,39 @@ class _TripListScreenState extends State<TripListScreen> {
                                 ElevatedButton(
                                   onPressed: () {
                                     Navigator.of(dialogCtx).pop();
-                                    widget.onNavigateToPassengers(2);
+                                    widget.onNavigateToPassengers(2); // Index of passenger screen
                                   },
                                   child: const Text('Go to Passengers'),
                                 ),
                               ],
                             ),
                           );
-                        } else {
+                         } else {
                           final selectedPassengers = await showDialog<List<Passenger>>(
                             context: context,
                             builder: (context) => PassengerSelectionDialog(allPassengers: allPassengers),
                           );
                           if (selectedPassengers != null && selectedPassengers.isNotEmpty) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => LiveTripScreen(passengers: selectedPassengers)),
-                            );
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => LiveTripScreen(passengers: selectedPassengers)));
                           }
                         }
                       },
                     ),
-
-                    // --- NEW: OPTION 2: LIVE SOLO TRIP ---
                     ListTile(
                       leading: const Icon(Icons.person),
                       title: const Text('Start Solo Trip (Just Me)'),
-                      subtitle: const Text('Track your own distance and fuel usage'),
                       onTap: () {
-                        Navigator.of(ctx).pop(); // Close the bottom sheet
-                        // Navigate to the LiveTripScreen with an EMPTY list of passengers.
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LiveTripScreen(passengers: []),
-                          ),
-                        );
+                        Navigator.of(ctx).pop();
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const LiveTripScreen(passengers: [])));
                       },
                     ),
-
                     const Divider(),
-
-                    // --- OPTION 3: ADD MANUALLY ---
                     ListTile(
                       leading: const Icon(Icons.edit_note),
                       title: const Text('Add Manually'),
-                      subtitle: const Text('Enter trip details after the fact'),
                       onTap: () {
-                        Navigator.of(ctx).pop(); // Close the bottom sheet
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const AddTripScreen()),
-                        );
+                        Navigator.of(ctx).pop();
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const AddTripScreen()));
                       },
                     ),
                   ],
@@ -181,11 +188,8 @@ class _TripListScreenState extends State<TripListScreen> {
   }
 }
 
-// In lib/screens/trip_list_screen.dart, AFTER the _TripListScreenState class
-
 class PassengerSelectionDialog extends StatefulWidget {
   final List<Passenger> allPassengers;
-
   const PassengerSelectionDialog({super.key, required this.allPassengers});
 
   @override
@@ -193,7 +197,6 @@ class PassengerSelectionDialog extends StatefulWidget {
 }
 
 class _PassengerSelectionDialogState extends State<PassengerSelectionDialog> {
-  // This list will hold the passengers the user ticks in the checkbox
   final List<Passenger> _selectedPassengers = [];
 
   @override
@@ -208,7 +211,6 @@ class _PassengerSelectionDialogState extends State<PassengerSelectionDialog> {
               title: Text(passenger.name),
               value: isSelected,
               onChanged: (bool? selected) {
-                // Update the state of this dialog when a checkbox is ticked
                 setState(() {
                   if (selected == true) {
                     _selectedPassengers.add(passenger);
@@ -222,19 +224,13 @@ class _PassengerSelectionDialogState extends State<PassengerSelectionDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context), // Close and return null
-          child: const Text('Cancel'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         ElevatedButton(
           onPressed: () {
             if (_selectedPassengers.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Please select at least one passenger.')),
-              );
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select at least one passenger.')));
               return;
             }
-            // Close the dialog and return the list of selected passengers as the result
             Navigator.pop(context, _selectedPassengers);
           },
           child: const Text('Start Trip'),

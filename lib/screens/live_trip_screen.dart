@@ -9,6 +9,8 @@ class LiveTripScreen extends StatefulWidget {
 }
 
 class _LiveTripScreenState extends State<LiveTripScreen> {
+  final DatabaseService _dbService = DatabaseService();
+
   bool _isTracking = false;
   double _totalDistance = 0.0;
   String _startAddress = 'Press Start to begin your trip';
@@ -38,7 +40,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
       final hasPermission = await LocationService.checkAndRequestPermissions();
       if (!hasPermission || !mounted) return;
 
-      final locationSettings = LocationSettings(accuracy: LocationAccuracy.bestForNavigation, distanceFilter: 5);
+      final locationSettings = const LocationSettings(accuracy: LocationAccuracy.bestForNavigation, distanceFilter: 5);
       _startPosition = await Geolocator.getCurrentPosition();
       _lastPosition = _startPosition;
       final address = await LocationService.getAddressFromCoordinates(_startPosition!);
@@ -104,7 +106,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     final totalFuelCost = totalLitersUsed * fuelPrice;
 
     try {
-      await DatabaseService.createTripWithLog(
+      await _dbService.createTripWithLog(
         startLocation: _startAddress,
         endLocation: endAddress,
         distance: distanceInKm,
@@ -115,7 +117,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
         totalLitersUsed: totalLitersUsed,
         otherCosts: otherCosts,
       );
-      
+
       messenger.showSnackBar(const SnackBar(content: Text('Trip saved successfully!')));
       navigator.pop();
       navigator.pop();
@@ -123,7 +125,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Failed to save trip: $e')));
     }
-}
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -7,15 +7,22 @@ class FuelLogListScreen extends StatefulWidget {
 }
 
 class _FuelLogListScreenState extends State<FuelLogListScreen> {
+  // Create an instance of our DatabaseService to talk to Firestore
+  final DatabaseService _dbService = DatabaseService();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Fuel Logs')),
+      // MODIFIED: The StreamBuilder now uses the DatabaseService and the new FuelLog model
       body: StreamBuilder<List<FuelLog>>(
-        stream: database.watchAllFuelLogs(),
+        stream: _dbService.watchAllFuelLogs(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
           final logs = snapshot.data ?? [];
           if (logs.isEmpty) {
@@ -46,10 +53,10 @@ class _FuelLogListScreenState extends State<FuelLogListScreen> {
                           style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.redAccent),
                           onPressed: () {
-                            // Call the delete service and close the dialog
-                            DatabaseService.deleteFuelLog(log.id);
+                            // MODIFIED: Call the Firestore-enabled delete method
+                            _dbService.deleteFuelLog(log.id);
                             Navigator.of(ctx).pop();
-                            // Optionally show a snackbar confirmation
+
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                   content: Text(
@@ -62,6 +69,7 @@ class _FuelLogListScreenState extends State<FuelLogListScreen> {
                     ),
                   );
                 },
+                // The FuelLogCard now receives the new Firestore-based FuelLog model
                 child: FuelLogCard(log: log),
               );
             },

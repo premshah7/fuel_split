@@ -20,12 +20,11 @@ class ContactService {
           debugPrint("DEBUG: SUCCESS! Contact selected: ${contact.displayName}");
           String name = contact.displayName;
           String? number = contact.phones.isNotEmpty ? contact.phones.first.number : null;
-
-          final newPassenger = PassengersCompanion(
-            name: drift.Value(name),
-            contactNumber: drift.Value(number),
+          final dbService = DatabaseService();
+          await dbService.addPassenger(
+            name: name,
+            contactNumber: number,
           );
-          await database.insertPassenger(newPassenger);
 
           messenger.showSnackBar(
             SnackBar(content: Text('$name was added from your contacts.')),

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1003142256873",
+    "project_id": "fuel-split-eab2a",
+    "storage_bucket": "fuel-split-eab2a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1003142256873:android:5eed13ed5e9e052571f878",
+        "android_client_info": {
+          "package_name": "com.example.fuel_split"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3KUvaKhDYfIq61JSBVFiI311iVT4J4dA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

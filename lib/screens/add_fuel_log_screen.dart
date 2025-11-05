@@ -1,5 +1,4 @@
 import 'package:fuel_split/services/exports.dart';
-import 'package:drift/drift.dart' as drift;
 
 class AddFuelLogScreen extends StatefulWidget {
   const AddFuelLogScreen({super.key});
@@ -14,6 +13,8 @@ class _AddFuelLogScreenState extends State<AddFuelLogScreen> {
   final _costController = TextEditingController();
   final _odometerController = TextEditingController();
 
+  final DatabaseService _dbService = DatabaseService();
+
   @override
   void dispose() {
     _amountController.dispose();
@@ -22,28 +23,36 @@ class _AddFuelLogScreenState extends State<AddFuelLogScreen> {
     super.dispose();
   }
 
-  void _saveLog() {
+  void _saveLog() async {
     if (_formKey.currentState!.validate()) {
-      final newLog = FuelLogsCompanion(
-        amountLiters: drift.Value(double.parse(_amountController.text)),
-        totalCost: drift.Value(double.parse(_costController.text)),
-        odometerReading: drift.Value(double.parse(_odometerController.text)),
-        logDate: drift.Value(DateTime.now()),
-        isTripConsumption: const drift.Value(false),
-      );
+      final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
 
-      database.insertFuelLog(newLog).then((_) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Fuel log saved!')),
+      final double amount = double.tryParse(_amountController.text) ?? 0.0;
+      final double cost = double.tryParse(_costController.text) ?? 0.0;
+      final double odometer = double.tryParse(_odometerController.text) ?? 0.0;
+
+      if (amount <= 0 || cost <= 0) {
+        messenger.showSnackBar(const SnackBar(content: Text('Please enter a valid amount and cost.')));
+        return;
+      }
+
+      try {
+        await _dbService.addManualFuelLog(
+          amountLiters: amount,
+          totalCost: cost,
+          odometer: odometer,
         );
-        Navigator.pop(context);
-      }).catchError((error) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save log: $error')),
+
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Fuel log saved successfully!')),
         );
-      });
+        navigator.pop();
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Failed to save log: $e')),
+        );
+      }
     }
   }
 

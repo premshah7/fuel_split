@@ -1,81 +1,18 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fuel_split/firebase_options.dart';
 import 'package:fuel_split/services/exports.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-late AppDatabase database;
 
-void main() {
-  database = AppDatabase();
-  runApp(const ProviderScope(child: MyApp()));
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  runApp(const MyApp());
 }
-
-const Color primaryColor = Color(0xFF00897B);
-const Color accentColor = Color(0xFFFDD835);
-
-ThemeData lightTheme = ThemeData(
-  brightness: Brightness.light,
-  primaryColor: primaryColor,
-  colorScheme: const ColorScheme.light(
-    primary: primaryColor,
-    secondary: accentColor,
-    onPrimary: Colors.white,
-  ),
-  appBarTheme: const AppBarTheme(
-    backgroundColor: primaryColor,
-    foregroundColor: Colors.white,
-    elevation: 2,
-  ),
-  floatingActionButtonTheme: const FloatingActionButtonThemeData(
-    backgroundColor: primaryColor,
-    foregroundColor: Colors.white,
-  ),
-  cardTheme: CardThemeData(
-    elevation: 2,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-  ),
-  elevatedButtonTheme: ElevatedButtonThemeData(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: primaryColor,
-      foregroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-    ),
-  ),
-  useMaterial3: true,
-);
-
-ThemeData darkTheme = ThemeData(
-  brightness: Brightness.dark,
-  primaryColor: primaryColor,
-  scaffoldBackgroundColor: const Color(0xFF121212),
-  colorScheme: const ColorScheme.dark(
-    primary: primaryColor,
-    secondary: accentColor,
-  ),
-  appBarTheme: const AppBarTheme(
-    backgroundColor: Color(0xFF1F1F1F),
-    elevation: 2,
-  ),
-  floatingActionButtonTheme: const FloatingActionButtonThemeData(
-    backgroundColor: primaryColor,
-  ),
-  cardTheme: CardThemeData(
-    elevation: 2,
-    color: const Color(0xFF1E1E1E),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-  ),
-  elevatedButtonTheme: ElevatedButtonThemeData(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: primaryColor,
-      foregroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-    ),
-  ),
-  useMaterial3: true,
-);
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -84,11 +21,39 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Fuel Tracker',
-      theme: lightTheme,
-      darkTheme: darkTheme,
+      title: 'Fuel Split',
+      theme: ThemeData.light(useMaterial3: true).copyWith(
+        primaryColor: const Color(0xFF00897B),
+        colorScheme: const ColorScheme.light(primary: Color(0xFF00897B)),
+      ),
+      darkTheme: ThemeData.dark(useMaterial3: true),
       themeMode: ThemeMode.system,
-      home: const HomeScreen(),
+      home: const AuthWrapper(),
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        if (snapshot.hasData) {
+          return const HomeScreen();
+        }
+
+        return const LoginScreen();
+      },
     );
   }
 }

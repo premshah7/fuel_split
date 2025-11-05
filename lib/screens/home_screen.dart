@@ -1,3 +1,4 @@
+import 'package:fuel_split/screens/payment_screen.dart';
 import 'package:fuel_split/services/exports.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _pages = [
       TripListScreen(onNavigateToPassengers: _changeTab),
+      const PaymentsScreen(),
       const FuelLogListScreen(),
       const PassengerListScreen(),
     ];
@@ -31,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
         type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Trips'),
+          BottomNavigationBarItem(icon: Icon(Icons.payment_outlined), label: 'Payments'), // <-- NEW TAB
           BottomNavigationBarItem(icon: Icon(Icons.local_gas_station_outlined), label: 'Fuel'),
           BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: 'Passengers'),
         ],

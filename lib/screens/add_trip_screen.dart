@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' as drift;
 import 'package:fuel_split/services/exports.dart';
 
 class AddTripScreen extends StatefulWidget {
@@ -22,12 +21,13 @@ class _AddTripScreenState extends State<AddTripScreen> {
   final List<Passenger> _selectedPassengers = [];
   bool _isRoundTrip = false;
 
+  final DatabaseService _dbService = DatabaseService();
   bool get _isEditMode => widget.tripToEdit != null;
 
   @override
   void initState() {
     super.initState();
-    _passengerSub = database.watchAllPassengers().listen((passengers) {
+    _passengerSub = _dbService.watchAllPassengers().listen((passengers) {
       if (mounted) setState(() => _allPassengers = passengers);
     });
 
@@ -92,11 +92,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
               onPressed: () {
                 final name = nameController.text;
                 if (name.isNotEmpty) {
-                  final newPassenger = PassengersCompanion(
-                    name: drift.Value(name),
-                    contactNumber: drift.Value(contactController.text),
-                  );
-                  database.insertPassenger(newPassenger);
+                  _dbService.addPassenger(name: name, contactNumber: contactController.text);
                   Navigator.pop(context);
                 }
               },
@@ -107,7 +103,6 @@ class _AddTripScreenState extends State<AddTripScreen> {
       },
     );
   }
-
 
   void _showCostInputDialogAndSave() {
     if (_formKey.currentState!.validate()) {
@@ -138,7 +133,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
     }
   }
 
-  void _calculateAndSaveTrip() {
+  void _calculateAndSaveTrip() async {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
 
@@ -153,18 +148,20 @@ class _AddTripScreenState extends State<AddTripScreen> {
     }
 
     if (_isEditMode) {
-      DatabaseService.updateTrip(
-        widget.tripToEdit!.id,
-        startLocation: _startLocationController.text,
-        endLocation: _endLocationController.text,
-        distance: double.tryParse(_distanceController.text) ?? 0.0, // In edit mode, distance is the total distance
-        isRoundTrip: _isRoundTrip,
-        notes: tripNote,
-        otherCosts: otherCosts,
-      ).then((_) {
+      try {
+        await _dbService.updateTrip(widget.tripToEdit!.id, {
+          'startLocation': _startLocationController.text,
+          'endLocation': _endLocationController.text,
+          'distance': finalDistanceInKm,
+          'isRoundTrip': _isRoundTrip,
+          'notes': tripNote,
+          'otherCosts': otherCosts,
+        });
         messenger.showSnackBar(const SnackBar(content: Text('Trip updated successfully!')));
         navigator.pop();
-      });
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('Update failed: $e')));
+      }
     } else {
       final mileage = double.tryParse(_mileageController.text) ?? 0.0;
       final fuelPrice = double.tryParse(_fuelPriceController.text) ?? 0.0;
@@ -176,20 +173,23 @@ class _AddTripScreenState extends State<AddTripScreen> {
       final totalLitersUsed = finalDistanceInKm / mileage;
       final totalFuelCost = totalLitersUsed * fuelPrice;
 
-      DatabaseService.createTripWithLog(
-        startLocation: _startLocationController.text,
-        endLocation: _endLocationController.text,
-        distance: finalDistanceInKm,
-        isRoundTrip: _isRoundTrip,
-        notes: tripNote,
-        passengers: _selectedPassengers,
-        totalFuelCost: totalFuelCost,
-        totalLitersUsed: totalLitersUsed,
-        otherCosts: otherCosts,
-      ).then((_) {
+      try {
+        await _dbService.createTripWithLog(
+          startLocation: _startLocationController.text,
+          endLocation: _endLocationController.text,
+          distance: finalDistanceInKm,
+          isRoundTrip: _isRoundTrip,
+          notes: tripNote,
+          passengers: _selectedPassengers,
+          totalFuelCost: totalFuelCost,
+          totalLitersUsed: totalLitersUsed,
+          otherCosts: otherCosts,
+        );
         messenger.showSnackBar(const SnackBar(content: Text('Manual trip saved successfully!')));
         navigator.pop();
-      });
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('Failed to save trip: $e')));
+      }
     }
   }
 
@@ -222,10 +222,12 @@ class _AddTripScreenState extends State<AddTripScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Select Passengers', style: Theme.of(context).textTheme.titleLarge),
-                    IconButton(icon: const Icon(Icons.add_circle), onPressed: _showAddPassengerDialog, color: Theme.of(context).primaryColor),
+                    IconButton(icon: const Icon(Icons.add_circle), onPressed: _showAddPassengerDialog, color: Theme.of(context).primaryColor, tooltip: 'Add New Passenger'),
                   ],
                 ),
-                if (_allPassengers.isEmpty) const Text('No passengers available.') else Wrap(
+                if (_allPassengers.isEmpty)
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 8.0), child: Text('No passengers available. Tap + to add one.'))
+                else Wrap(
                   spacing: 8.0,
                   children: _allPassengers.map((passenger) {
                     final isSelected = _selectedPassengers.contains(passenger);
