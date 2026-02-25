@@ -51,13 +51,6 @@
 		<string>This app needs access to location to track your trip distance even when the app is in the background.</string>
 		<key>NSContactsUsageDescription</key>
 		<string>This app needs access to your contacts to easily add passengers to trips.</string>
-		<key>NSLocationWhenInUseUsageDescription</key>
-        <string>This app needs access to location to track your trip distance.</string>
-        <key>NSLocationAlwaysUsageDescription</key>
-        <string>This app needs access to location to track your trip distance even when the app is in the background.</string>
-        <key>NSContactsUsageDescription</key>
-        <string>This app needs access to your contacts to easily add passengers to trips.</string>
-        <key>UIStatusBarHidden</key>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>
