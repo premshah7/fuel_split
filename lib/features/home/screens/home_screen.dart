@@ -15,8 +15,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
-    TripsListScreen(),
     DashboardScreen(),
+    TripsListScreen(),
     PaymentScreen(),
     PassengerListScreen(),
   ];
@@ -30,14 +30,14 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (index) => setState(() => _currentIndex = index),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.directions_car_outlined),
-            selectedIcon: Icon(Icons.directions_car),
-            label: 'Trips',
-          ),
-          NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),
             selectedIcon: Icon(Icons.bar_chart),
             label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.directions_car_outlined),
+            selectedIcon: Icon(Icons.directions_car),
+            label: 'Trips',
           ),
           NavigationDestination(
             icon: Icon(Icons.account_balance_wallet_outlined),

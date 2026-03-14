@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 import '../repositories/trip_repository.dart';
 import '../models/trip.dart';
 // Removed fuel_log.dart import
 import '../../passengers/models/passenger.dart';
 import '../../passengers/repositories/passenger_repository.dart';
 import '../../../core/utils/contact_helper.dart';
+import '../../../core/utils/location_helper.dart';
 
 class CurrentStepNotifier extends Notifier<int> {
   @override
@@ -41,6 +43,8 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
   // Step 3: Passengers State
   final List<Passenger> _selectedPassengers = [];
 
+  bool _isLoadingLocation = false;
+
   @override
   void dispose() {
     _startLocationController.dispose();
@@ -49,6 +53,40 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     _fuelPriceController.dispose();
     _mileageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchCurrentLocationForStart() async {
+    setState(() => _isLoadingLocation = true);
+    
+    final address = await LocationHelper.getCurrentAddress(context);
+    
+    if (address != null && mounted) {
+      setState(() {
+        _startLocationController.text = address;
+      });
+    }
+    
+    if (mounted) {
+      setState(() => _isLoadingLocation = false);
+    }
+  }
+
+  bool _isLoadingEndLocation = false;
+
+  Future<void> _fetchCurrentLocationForEnd() async {
+    setState(() => _isLoadingEndLocation = true);
+    
+    final address = await LocationHelper.getCurrentAddress(context);
+    
+    if (address != null && mounted) {
+      setState(() {
+        _endLocationController.text = address;
+      });
+    }
+    
+    if (mounted) {
+      setState(() => _isLoadingEndLocation = false);
+    }
   }
 
   void _showAddPassengerSheet() {
@@ -275,14 +313,86 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
+        TypeAheadField<String>(
           controller: _startLocationController,
-          decoration: const InputDecoration(labelText: 'Start Location', prefixIcon: Icon(Icons.my_location)),
+          suggestionsCallback: (pattern) async {
+            if (pattern.length < 3) return [];
+            return await LocationHelper.searchLocations(pattern);
+          },
+          builder: (context, controller, focusNode) {
+            return TextField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                labelText: 'Start Location',
+                prefixIcon: const Icon(Icons.my_location),
+                suffixIcon: _isLoadingLocation
+                    ? const Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.gps_fixed),
+                        onPressed: _fetchCurrentLocationForStart,
+                        tooltip: 'Fetch Current Location',
+                      ),
+              ),
+            );
+          },
+          itemBuilder: (context, suggestion) {
+            return ListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: Text(suggestion),
+            );
+          },
+          onSelected: (suggestion) {
+            _startLocationController.text = suggestion;
+          },
+          emptyBuilder: (context) => const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text('No locations found'),
+          ),
         ),
         const SizedBox(height: 16),
-        TextField(
+        TypeAheadField<String>(
           controller: _endLocationController,
-          decoration: const InputDecoration(labelText: 'Destination', prefixIcon: Icon(Icons.location_on_outlined)),
+          suggestionsCallback: (pattern) async {
+            if (pattern.length < 3) return [];
+            return await LocationHelper.searchLocations(pattern);
+          },
+          builder: (context, controller, focusNode) {
+            return TextField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                labelText: 'Destination',
+                prefixIcon: const Icon(Icons.location_on_outlined),
+                suffixIcon: _isLoadingEndLocation
+                    ? const Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.gps_fixed),
+                        onPressed: _fetchCurrentLocationForEnd,
+                        tooltip: 'Fetch Current Location',
+                      ),
+              ),
+            );
+          },
+          itemBuilder: (context, suggestion) {
+            return ListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: Text(suggestion),
+            );
+          },
+          onSelected: (suggestion) {
+            _endLocationController.text = suggestion;
+          },
+          emptyBuilder: (context) => const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text('No locations found'),
+          ),
         ),
         const SizedBox(height: 16),
         TextField(

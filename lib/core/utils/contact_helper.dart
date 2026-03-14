@@ -4,7 +4,7 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 class ContactHelper {
   static Future<Contact?> pickContact(BuildContext context) async {
     try {
-      print('Requesting contact permission directly...');
+      debugPrint('Requesting contact permission directly...');
       final hasPermission = await FlutterContacts.requestPermission(readonly: true);
       
       if (!hasPermission) {
@@ -14,7 +14,7 @@ class ContactHelper {
         return null;
       }
 
-      print('Fetching all contacts locally...');
+      debugPrint('Fetching all contacts locally...');
       // Load all contacts with basic info
       final contacts = await FlutterContacts.getContacts(withProperties: true, withPhoto: false);
       
@@ -29,8 +29,8 @@ class ContactHelper {
       );
 
     } catch (e, stack) {
-      print('Error picking contact: $e');
-      print(stack);
+      debugPrint('Error picking contact: $e');
+      debugPrint(stack.toString());
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
