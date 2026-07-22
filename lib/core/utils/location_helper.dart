@@ -53,8 +53,8 @@ class LocationHelper {
 
       Position position = await Geolocator.getCurrentPosition();
 
-      // Convert coordinates to an address
-      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      // Convert coordinates to an address using Geocoding class in v5.0.0
+      List<Placemark> placemarks = await Geocoding().placemarkFromCoordinates(position.latitude, position.longitude);
 
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks.first;

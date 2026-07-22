@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../models/trip.dart';
 import '../repositories/trip_repository.dart';
@@ -24,17 +25,22 @@ class TripDetailScreen extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final tripAsync = ref.watch(allTripsProvider);
+    final trips = tripAsync.value ?? [];
+    final tripObj = trips.firstWhere((t) => t.id == tripId, orElse: () => initialTrip ?? Trip(
+      id: '', startLocation: '', endLocation: '', distance: 0, tripDate: DateTime.now(), isRoundTrip: false
+    ));
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Trip Details', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () {
-              // TODO: Implement Edit Trip
-            },
-          ),
+          if (tripObj.id.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () {
+                context.push('/edit-trip/${tripObj.id}', extra: tripObj);
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
             onPressed: () async {
@@ -225,6 +231,8 @@ class TripDetailScreen extends ConsumerWidget {
                           endLocation: trip.endLocation,
                           totalCost: trip.totalCost,
                           yourShare: pax.costShare,
+                          tripDate: trip.tripDate,
+                          distance: trip.distance,
                         );
                         UrlLauncherHelper.launchWhatsApp(pax.contactNumber, message);
                       },

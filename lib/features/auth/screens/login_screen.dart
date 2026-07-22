@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../repositories/auth_repository.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -36,6 +37,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_password', _passwordController.text);
     } catch (e) {
       if (mounted) {
         setState(() => _errorMessage = e.toString().replaceAll(RegExp(r'\[.*?\] '), ''));
@@ -43,6 +46,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final emailResetController = TextEditingController(text: _emailController.text.trim());
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Reset Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Enter your email address to receive a password reset link.'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailResetController,
+                decoration: const InputDecoration(
+                  labelText: 'Email Address',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final email = emailResetController.text.trim();
+                if (email.isEmpty) return;
+                try {
+                  await ref.read(authRepositoryProvider).sendPasswordResetEmail(email);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Password reset email sent to $email'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: ${e.toString().replaceAll(RegExp(r'\[.*?\] '), '')}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Send Link'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -206,6 +270,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                                 obscureText: true,
                               ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: _showForgotPasswordDialog,
+                                  child: const Text('Forgot Password?', style: TextStyle(fontWeight: FontWeight.bold)),
+                                ),
+                              ),
                               
                               if (_errorMessage != null) ...[
                                 const SizedBox(height: 16),
@@ -223,7 +295,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ).animate().fadeIn().shake(duration: 300.ms),
                               ],
                               
-                              const SizedBox(height: 32),
+                              const SizedBox(height: 24),
                               
                               // Button
                               SizedBox(

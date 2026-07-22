@@ -41,7 +41,7 @@ class PassengerListScreen extends ConsumerWidget {
                       onPressed: () async {
                         final contact = await ContactHelper.pickContact(context);
                         if (contact != null) {
-                          nameController.text = contact.displayName;
+                          nameController.text = contact.displayName ?? '';
                           if (contact.phones.isNotEmpty) {
                             phoneController.text = contact.phones.first.number;
                           }

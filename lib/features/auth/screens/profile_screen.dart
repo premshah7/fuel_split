@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../repositories/auth_repository.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -13,12 +14,24 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _nameController = TextEditingController();
   bool _isLoading = false;
+  String _cachedPassword = '';
+  bool _obscurePassword = true;
 
   @override
   void initState() {
     super.initState();
     final user = ref.read(authRepositoryProvider).currentUser;
     _nameController.text = user?.displayName ?? '';
+    _loadCachedPassword();
+  }
+
+  Future<void> _loadCachedPassword() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _cachedPassword = prefs.getString('cached_password') ?? '';
+      });
+    }
   }
 
   @override
@@ -126,6 +139,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           decoration: const InputDecoration(
                             labelText: 'Email Address',
                             prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: TextEditingController(text: _cachedPassword.isEmpty ? '••••••••' : _cachedPassword),
+                          obscureText: _obscurePassword,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
                           ),
                         ),
                       ],

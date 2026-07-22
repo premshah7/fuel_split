@@ -6,6 +6,9 @@ class FuelLog {
   final double amountLiters;
   final double totalCost;
   final DateTime date;
+  final bool isTripConsumption;
+  final double? odometerReading;
+  final double tripsCost;
 
   FuelLog({
     required this.id,
@@ -13,6 +16,9 @@ class FuelLog {
     required this.amountLiters,
     required this.totalCost,
     required this.date,
+    this.isTripConsumption = true,
+    this.odometerReading,
+    this.tripsCost = 0.0,
   });
 
   factory FuelLog.fromFirestore(DocumentSnapshot doc) {
@@ -22,7 +28,10 @@ class FuelLog {
       tripId: data['tripId'] ?? '',
       amountLiters: (data['amountLiters'] ?? 0.0).toDouble(),
       totalCost: (data['totalCost'] ?? 0.0).toDouble(),
-      date: (data['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      date: (data['date'] as Timestamp?)?.toDate() ?? (data['logDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      isTripConsumption: data['isTripConsumption'] ?? true,
+      odometerReading: data['odometerReading'] != null ? (data['odometerReading'] as num).toDouble() : null,
+      tripsCost: (data['tripsCost'] ?? 0.0).toDouble(),
     );
   }
 
@@ -32,6 +41,9 @@ class FuelLog {
       'amountLiters': amountLiters,
       'totalCost': totalCost,
       'date': Timestamp.fromDate(date),
+      'isTripConsumption': isTripConsumption,
+      'odometerReading': odometerReading,
+      'tripsCost': tripsCost,
     };
   }
 }

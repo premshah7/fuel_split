@@ -30,6 +30,14 @@ class AddTripScreen extends ConsumerStatefulWidget {
 }
 
 class _AddTripScreenState extends ConsumerState<AddTripScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(currentStepProvider.notifier).reset();
+    });
+  }
+
   // Step 1: Route Controllers
   final _startLocationController = TextEditingController();
   final _endLocationController = TextEditingController();
@@ -117,7 +125,7 @@ class _AddTripScreenState extends ConsumerState<AddTripScreen> {
                     onPressed: () async {
                       final contact = await ContactHelper.pickContact(context);
                       if (contact != null) {
-                        nameController.text = contact.displayName;
+                        nameController.text = contact.displayName ?? '';
                         if (contact.phones.isNotEmpty) {
                           phoneController.text = contact.phones.first.number;
                         }

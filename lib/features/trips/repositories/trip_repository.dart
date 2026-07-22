@@ -24,6 +24,12 @@ final unsettledDebtsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
   return repo.getUnsettledDebts();
 });
 
+final allFuelLogsProvider = StreamProvider<List<FuelLog>>((ref) {
+  final repo = ref.watch(tripRepositoryProvider);
+  if (repo == null) return Stream.value([]);
+  return repo.watchAllFuelLogs();
+});
+
 class TripRepository {
   final FirebaseFirestore _db;
   final String _uid;
@@ -38,6 +44,62 @@ class TripRepository {
     return _tripsRef.orderBy('tripDate', descending: true).snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => Trip.fromFirestore(doc)).toList();
     });
+  }
+
+  Stream<List<FuelLog>> watchAllFuelLogs() {
+    return _fuelLogsRef.orderBy('date', descending: true).snapshots().map((snapshot) {
+      return snapshot.docs
+          .map((doc) => FuelLog.fromFirestore(doc))
+          .where((log) => !log.isTripConsumption)
+          .toList();
+    });
+  }
+
+  Future<void> addManualFuelLog({
+    required double amountLiters,
+    required double totalCost,
+    double? odometer,
+  }) async {
+    // 1. Fetch latest manual fuel log
+    final prevLogsQuery = await _fuelLogsRef
+        .where('isTripConsumption', isEqualTo: false)
+        .orderBy('date', descending: true)
+        .limit(1)
+        .get();
+
+    double tripsCost = 0.0;
+    final now = DateTime.now();
+
+    // 2. Query trips in interval
+    Query tripsQuery = _tripsRef;
+    if (prevLogsQuery.docs.isNotEmpty) {
+      final prevLog = FuelLog.fromFirestore(prevLogsQuery.docs.first);
+      tripsQuery = tripsQuery
+          .where('tripDate', isGreaterThan: prevLog.date)
+          .where('tripDate', isLessThanOrEqualTo: now);
+    } else {
+      tripsQuery = tripsQuery.where('tripDate', isLessThanOrEqualTo: now);
+    }
+
+    final tripsSnapshot = await tripsQuery.get();
+    for (var doc in tripsSnapshot.docs) {
+      tripsCost += (doc['totalCost'] ?? 0.0).toDouble();
+    }
+
+    // 3. Save new refuel log with computed tripsCost
+    await _fuelLogsRef.add({
+      'tripId': '',
+      'amountLiters': amountLiters,
+      'totalCost': totalCost,
+      'odometerReading': odometer,
+      'date': FieldValue.serverTimestamp(),
+      'isTripConsumption': false,
+      'tripsCost': tripsCost,
+    });
+  }
+
+  Future<void> deleteFuelLog(String logId) async {
+    await _fuelLogsRef.doc(logId).delete();
   }
 
   Stream<Trip?> watchTrip(String tripId) {

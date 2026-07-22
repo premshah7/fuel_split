@@ -3,14 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../trips/repositories/trip_repository.dart';
 import '../../../core/theme/theme_provider.dart';
 
-class DashboardScreen extends ConsumerWidget {
+enum ChartFilter { fiveDays, weekly, monthly }
+
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  ChartFilter _selectedFilter = ChartFilter.fiveDays;
+
+  @override
+  Widget build(BuildContext context) {
     final tripsAsync = ref.watch(allTripsProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -29,6 +39,11 @@ class DashboardScreen extends ConsumerWidget {
                 onPressed: () {
                   ref.read(themeModeProvider.notifier).toggleTheme(isDark);
                 },
+              ),
+              IconButton(
+                icon: const Icon(Icons.local_gas_station_outlined),
+                tooltip: 'Fuel Logs',
+                onPressed: () => context.push('/fuel-logs'),
               ),
               IconButton(
                 icon: const Icon(Icons.person_outline),
@@ -70,6 +85,52 @@ class DashboardScreen extends ConsumerWidget {
               final totalDistance = trips.fold(0.0, (sum, t) => sum + t.distance);
               final avgCostPerKm = totalDistance > 0 ? (totalSpent / totalDistance) : 0.0;
 
+              // Time-series grouping logic
+              final List<FlSpot> spots = [];
+              final List<String> labels = [];
+
+              if (_selectedFilter == ChartFilter.fiveDays) {
+                for (int i = 4; i >= 0; i--) {
+                  final date = DateTime.now().subtract(Duration(days: i));
+                  final cost = trips.where((t) =>
+                      t.tripDate.year == date.year &&
+                      t.tripDate.month == date.month &&
+                      t.tripDate.day == date.day
+                  ).fold(0.0, (sum, t) => sum + t.totalCost);
+
+                  spots.add(FlSpot((4 - i).toDouble(), cost));
+                  labels.add(DateFormat('E').format(date));
+                }
+              } else if (_selectedFilter == ChartFilter.weekly) {
+                for (int i = 6; i >= 0; i--) {
+                  final date = DateTime.now().subtract(Duration(days: i));
+                  final cost = trips.where((t) =>
+                      t.tripDate.year == date.year &&
+                      t.tripDate.month == date.month &&
+                      t.tripDate.day == date.day
+                  ).fold(0.0, (sum, t) => sum + t.totalCost);
+
+                  spots.add(FlSpot((6 - i).toDouble(), cost));
+                  labels.add(DateFormat('E').format(date));
+                }
+              } else if (_selectedFilter == ChartFilter.monthly) {
+                for (int i = 5; i >= 0; i--) {
+                  final date = DateTime(DateTime.now().year, DateTime.now().month - i, 1);
+                  final cost = trips.where((t) =>
+                      t.tripDate.year == date.year &&
+                      t.tripDate.month == date.month
+                  ).fold(0.0, (sum, t) => sum + t.totalCost);
+
+                  spots.add(FlSpot((5 - i).toDouble(), cost));
+                  labels.add(DateFormat('MMM').format(date));
+                }
+              }
+
+              // Compute dynamic Y scale
+              final double maxVal = spots.map((s) => s.y).fold(0.0, (prev, y) => y > prev ? y : prev);
+              final double maxY = maxVal > 0 ? (maxVal * 1.25) : 500.0;
+              final double horizontalInterval = maxY > 0 ? (maxY / 5) : 100.0;
+
               return SliverPadding(
                 padding: const EdgeInsets.all(16.0),
                 sliver: SliverList(
@@ -96,6 +157,55 @@ class DashboardScreen extends ConsumerWidget {
                     
                     Text('Spending Trend', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)).animate().fadeIn(delay: 400.ms),
                     const SizedBox(height: 16),
+
+                    // Custom Segmented Control
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1C1C1E) : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+                      ),
+                      child: Row(
+                        children: ChartFilter.values.map((filter) {
+                          final isSelected = _selectedFilter == filter;
+                          final label = filter == ChartFilter.fiveDays ? '5 Days' : filter == ChartFilter.weekly ? 'Weekly' : 'Monthly';
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedFilter = filter),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeInOut,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? theme.primaryColor : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: isSelected && !isDark ? [
+                                    BoxShadow(
+                                      color: theme.primaryColor.withValues(alpha: 0.2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ] : null,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    label,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ).animate().fadeIn(delay: 450.ms),
+                    
+                    const SizedBox(height: 16),
                     
                     // Chart
                     Container(
@@ -106,19 +216,36 @@ class DashboardScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
                         boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            )
-                          ]
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          )
+                        ]
                       ),
                       child: LineChart(
                         LineChartData(
+                          lineTouchData: LineTouchData(
+                            touchTooltipData: LineTouchTooltipData(
+                              getTooltipColor: (touchedSpot) => theme.primaryColor.withValues(alpha: 0.95),
+                              getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                                return touchedSpots.map((LineBarSpot touchedSpot) {
+                                  return LineTooltipItem(
+                                    '₹${touchedSpot.y.toStringAsFixed(2)}',
+                                    const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  );
+                                }).toList();
+                              },
+                            ),
+                          ),
                           gridData: FlGridData(
                             show: true,
                             drawVerticalLine: false,
-                            horizontalInterval: 100,
+                            horizontalInterval: horizontalInterval,
                             getDrawingHorizontalLine: (value) => FlLine(
                               color: isDark ? Colors.white10 : Colors.black12,
                               strokeWidth: 1,
@@ -135,32 +262,31 @@ class DashboardScreen extends ConsumerWidget {
                                 reservedSize: 30,
                                 interval: 1,
                                 getTitlesWidget: (value, meta) {
-                                  if (value % 1 != 0 || value < 0 || value >= trips.length) return const SizedBox.shrink();
-                                  // Just show index for now, ideally date
-                                  return Text('T${value.toInt() + 1}', style: TextStyle(color: Colors.grey.shade500, fontSize: 12));
+                                  final index = value.toInt();
+                                  if (index < 0 || index >= labels.length) return const SizedBox.shrink();
+                                  return Text(labels[index], style: TextStyle(color: Colors.grey.shade500, fontSize: 12));
                                 },
                               ),
                             ),
                             leftTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
-                                interval: 500,
+                                interval: horizontalInterval,
                                 reservedSize: 40,
                                 getTitlesWidget: (value, meta) {
-                                  return Text('₹${value.toInt()}', style: TextStyle(color: Colors.grey.shade500, fontSize: 12));
+                                  return Text('₹${value.toInt()}', style: TextStyle(color: Colors.grey.shade500, fontSize: 11));
                                 },
                               ),
                             ),
                           ),
                           borderData: FlBorderData(show: false),
                           minX: 0,
-                          maxX: (trips.length - 1).toDouble() > 0 ? (trips.length - 1).toDouble() : 1,
+                          maxX: (spots.length - 1).toDouble() > 0 ? (spots.length - 1).toDouble() : 1,
                           minY: 0,
+                          maxY: maxY,
                           lineBarsData: [
                             LineChartBarData(
-                              spots: List.generate(trips.length, (index) {
-                                return FlSpot(index.toDouble(), trips[index].totalCost);
-                              }),
+                              spots: spots,
                               isCurved: true,
                               curveSmoothness: 0.35,
                               color: theme.primaryColor,

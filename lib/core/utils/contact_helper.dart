@@ -5,7 +5,8 @@ class ContactHelper {
   static Future<Contact?> pickContact(BuildContext context) async {
     try {
       debugPrint('Requesting contact permission directly...');
-      final hasPermission = await FlutterContacts.requestPermission(readonly: true);
+      final status = await FlutterContacts.permissions.request(PermissionType.read);
+      final hasPermission = status == PermissionStatus.granted;
       
       if (!hasPermission) {
         if (context.mounted) {
@@ -15,8 +16,8 @@ class ContactHelper {
       }
 
       debugPrint('Fetching all contacts locally...');
-      // Load all contacts with basic info
-      final contacts = await FlutterContacts.getContacts(withProperties: true, withPhoto: false);
+      // Load all contacts with basic info and phones
+      final contacts = await FlutterContacts.getAll(properties: {ContactProperty.phone});
       
       if (!context.mounted) return null;
 
@@ -58,7 +59,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
   void _filter(String query) {
     setState(() {
       _filteredContacts = widget.contacts
-          .where((c) => c.displayName.toLowerCase().contains(query.toLowerCase()))
+          .where((c) => (c.displayName ?? '').toLowerCase().contains(query.toLowerCase()))
           .toList();
     });
   }
@@ -94,10 +95,10 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                          child: Text(c.displayName.isNotEmpty ? c.displayName[0].toUpperCase() : '?', 
+                          child: Text((c.displayName ?? '').isNotEmpty ? c.displayName![0].toUpperCase() : '?', 
                                       style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
                         ),
-                        title: Text(c.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        title: Text(c.displayName ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
                         subtitle: hasPhone ? Text(c.phones.first.number, style: TextStyle(color: Colors.grey.shade500)) : const Text('No phone number'),
                         enabled: hasPhone,
                         onTap: () {

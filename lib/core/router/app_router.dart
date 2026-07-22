@@ -8,6 +8,9 @@ import '../../features/auth/screens/profile_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/trips/screens/add_trip_screen.dart';
 import '../../features/trips/screens/trip_detail_screen.dart';
+import '../../features/trips/screens/edit_trip_screen.dart';
+import '../../features/trips/screens/fuel_log_list_screen.dart';
+import '../../features/trips/screens/add_fuel_log_screen.dart';
 import '../../features/trips/models/trip.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -51,8 +54,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/edit-trip/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          final trip = state.extra as Trip?;
+          return EditTripScreen(tripId: id, initialTrip: trip);
+        },
+      ),
+      GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/fuel-logs',
+        builder: (context, state) => const FuelLogListScreen(),
+      ),
+      GoRoute(
+        path: '/add-refuel',
+        builder: (context, state) => const AddFuelLogScreen(),
       ),
     ],
   );

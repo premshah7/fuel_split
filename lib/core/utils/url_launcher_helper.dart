@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UrlLauncherHelper {
@@ -32,15 +33,21 @@ class UrlLauncherHelper {
     required String endLocation,
     required double totalCost,
     required double yourShare,
+    required DateTime tripDate,
+    required double distance,
   }) {
+    final dateStr = DateFormat('EEEE, MMM d, yyyy').format(tripDate);
     return '''
-🚗 *Trip Receipt: $startLocation to $endLocation*
+🚗 *Trip Summary* 🚗
+--------------------
+📍 *From:* $startLocation
+📍 *To:* $endLocation
+🗓️ *Date:* $dateStr
+📐 *Distance:* ${distance.toStringAsFixed(1)} km
+💰 *Total Cost:* ₹${totalCost.toStringAsFixed(2)}
+💰 *Your Share:* *₹${yourShare.toStringAsFixed(2)}*
 
-Hey! Thanks for riding along. Here is the split for our recent trip:
-- *Total Fuel Cost:* ₹${totalCost.toStringAsFixed(0)}
-- *Your Share:* ₹${yourShare.toStringAsFixed(0)}
-
-Please send ₹${yourShare.toStringAsFixed(0)} to $driverName when you get a chance!
+Please send ₹${yourShare.toStringAsFixed(2)} to $driverName when you get a chance!
 ''';
   }
 
