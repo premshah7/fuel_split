@@ -9,6 +9,48 @@ import '../widgets/fuel_log_card.dart';
 class FuelLogListScreen extends ConsumerWidget {
   const FuelLogListScreen({super.key});
 
+  void _confirmDelete(BuildContext context, WidgetRef ref, FuelLog log) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Fuel Log?'),
+        content: Text(
+            'Are you sure you want to delete this ${log.isTripConsumption ? "trip consumption" : "refuel"} log? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              final repo = ref.read(tripRepositoryProvider);
+              if (repo != null) {
+                await repo.deleteFuelLog(log.id);
+              }
+              if (ctx.mounted) Navigator.of(ctx).pop();
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${log.isTripConsumption ? "Trip" : "Refuel"} log deleted.'),
+                  ),
+                );
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _editLog(BuildContext context, FuelLog log) {
+    if (!log.isTripConsumption) {
+      context.push('/edit-refuel/${log.id}', extra: log);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final logsAsync = ref.watch(allFuelLogsProvider);
@@ -101,42 +143,14 @@ class FuelLogListScreen extends ConsumerWidget {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: GestureDetector(
-                          onLongPress: () {
-                            showDialog(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('Delete Fuel Log?'),
-                                content: Text(
-                                    'Are you sure you want to delete this ${log.isTripConsumption ? "trip consumption" : "refuel"} log? This action cannot be undone.'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.of(ctx).pop(),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                                    onPressed: () async {
-                                      final repo = ref.read(tripRepositoryProvider);
-                                      if (repo != null) {
-                                        await repo.deleteFuelLog(log.id);
-                                      }
-                                      if (ctx.mounted) Navigator.of(ctx).pop();
-
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('${log.isTripConsumption ? "Trip" : "Refuel"} log deleted.'),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    child: const Text('Delete'),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                          child: FuelLogCard(log: log, summary: summary),
+                          onTap: !log.isTripConsumption ? () => _editLog(context, log) : null,
+                          onLongPress: () => _confirmDelete(context, ref, log),
+                          child: FuelLogCard(
+                            log: log,
+                            summary: summary,
+                            onEdit: !log.isTripConsumption ? () => _editLog(context, log) : null,
+                            onDelete: () => _confirmDelete(context, ref, log),
+                          ),
                         ),
                       ).animate().fadeIn(delay: (50 * index).ms).slideX(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuad);
                     },

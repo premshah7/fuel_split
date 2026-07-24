@@ -1,5 +1,5 @@
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-// Removed flutter/material.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/repositories/auth_repository.dart';
 import '../../features/auth/screens/login_screen.dart';
@@ -12,13 +12,31 @@ import '../../features/trips/screens/edit_trip_screen.dart';
 import '../../features/trips/screens/fuel_log_list_screen.dart';
 import '../../features/trips/screens/add_fuel_log_screen.dart';
 import '../../features/trips/models/trip.dart';
+import '../../features/trips/models/fuel_log.dart';
+
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  RouterNotifier(this._ref) {
+    _ref.listen(
+      authStateChangesProvider,
+      (_, _) => notifyListeners(),
+    );
+  }
+}
+
+final routerNotifierProvider = Provider<RouterNotifier>((ref) {
+  return RouterNotifier(ref);
+});
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateChangesProvider);
+  final notifier = ref.watch(routerNotifierProvider);
 
   return GoRouter(
+    refreshListenable: notifier,
     initialLocation: '/',
     redirect: (context, state) {
+      final authState = ref.read(authStateChangesProvider);
       if (authState.isLoading || authState.hasError) return null;
 
       final isAuthenticated = authState.value != null;
@@ -71,7 +89,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/add-refuel',
-        builder: (context, state) => const AddFuelLogScreen(),
+        builder: (context, state) {
+          final log = state.extra as FuelLog?;
+          return AddFuelLogScreen(initialLog: log);
+        },
+      ),
+      GoRoute(
+        path: '/edit-refuel/:id',
+        builder: (context, state) {
+          final log = state.extra as FuelLog?;
+          return AddFuelLogScreen(initialLog: log);
+        },
       ),
     ],
   );

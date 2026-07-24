@@ -18,10 +18,10 @@ final allTripsProvider = StreamProvider<List<Trip>>((ref) {
   return repo.watchAllTrips();
 });
 
-final unsettledDebtsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final unsettledDebtsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   final repo = ref.watch(tripRepositoryProvider);
-  if (repo == null) return [];
-  return repo.getUnsettledDebts();
+  if (repo == null) return Stream.value([]);
+  return repo.watchUnsettledDebts();
 });
 
 final allFuelLogsProvider = StreamProvider<List<FuelLog>>((ref) {
@@ -59,26 +59,30 @@ class TripRepository {
     required double amountLiters,
     required double totalCost,
     double? odometer,
+    DateTime? date,
   }) async {
-    // 1. Fetch latest manual fuel log
-    final prevLogsQuery = await _fuelLogsRef
-        .where('isTripConsumption', isEqualTo: false)
+    // 1. Fetch latest manual fuel log (filtered locally to avoid requiring a composite index)
+    final allLogsQuery = await _fuelLogsRef
         .orderBy('date', descending: true)
-        .limit(1)
         .get();
 
+    final prevLogDocs = allLogsQuery.docs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return (data['isTripConsumption'] ?? true) == false;
+    });
+
     double tripsCost = 0.0;
-    final now = DateTime.now();
+    final logDate = date ?? DateTime.now();
 
     // 2. Query trips in interval
     Query tripsQuery = _tripsRef;
-    if (prevLogsQuery.docs.isNotEmpty) {
-      final prevLog = FuelLog.fromFirestore(prevLogsQuery.docs.first);
+    if (prevLogDocs.isNotEmpty) {
+      final prevLog = FuelLog.fromFirestore(prevLogDocs.first);
       tripsQuery = tripsQuery
           .where('tripDate', isGreaterThan: prevLog.date)
-          .where('tripDate', isLessThanOrEqualTo: now);
+          .where('tripDate', isLessThanOrEqualTo: logDate);
     } else {
-      tripsQuery = tripsQuery.where('tripDate', isLessThanOrEqualTo: now);
+      tripsQuery = tripsQuery.where('tripDate', isLessThanOrEqualTo: logDate);
     }
 
     final tripsSnapshot = await tripsQuery.get();
@@ -92,7 +96,7 @@ class TripRepository {
       'amountLiters': amountLiters,
       'totalCost': totalCost,
       'odometerReading': odometer,
-      'date': FieldValue.serverTimestamp(),
+      'date': date != null ? Timestamp.fromDate(date) : FieldValue.serverTimestamp(),
       'isTripConsumption': false,
       'tripsCost': tripsCost,
     });
@@ -100,6 +104,24 @@ class TripRepository {
 
   Future<void> deleteFuelLog(String logId) async {
     await _fuelLogsRef.doc(logId).delete();
+  }
+
+  Future<void> updateManualFuelLog({
+    required String logId,
+    required double amountLiters,
+    required double totalCost,
+    double? odometer,
+    DateTime? date,
+  }) async {
+    final Map<String, dynamic> updates = {
+      'amountLiters': amountLiters,
+      'totalCost': totalCost,
+      'odometerReading': odometer,
+    };
+    if (date != null) {
+      updates['date'] = Timestamp.fromDate(date);
+    }
+    await _fuelLogsRef.doc(logId).update(updates);
   }
 
   Stream<Trip?> watchTrip(String tripId) {
@@ -121,6 +143,27 @@ class TripRepository {
       return FuelLog.fromFirestore(query.docs.first);
     }
     return null;
+  }
+
+  Stream<List<Map<String, dynamic>>> watchUnsettledDebts() {
+    return _tripsRef.snapshots().asyncMap((tripsSnapshot) async {
+      List<Map<String, dynamic>> debts = [];
+      for (var tripDoc in tripsSnapshot.docs) {
+        final data = tripDoc.data() as Map<String, dynamic>;
+        final tripName = '${data['startLocation'] ?? ''} to ${data['endLocation'] ?? ''}';
+        final paxSnapshot = await _tripsRef.doc(tripDoc.id).collection('passengers').where('isPaid', isEqualTo: false).get();
+        
+        for (var paxDoc in paxSnapshot.docs) {
+          debts.add({
+            'tripId': tripDoc.id,
+            'tripName': tripName,
+            'passengerId': paxDoc.id,
+            ...paxDoc.data()
+          });
+        }
+      }
+      return debts;
+    });
   }
 
   Future<List<Map<String, dynamic>>> getUnsettledDebts() async {
@@ -179,7 +222,8 @@ class TripRepository {
 
     // 3. Create Passenger Docs
     if (passengers.isNotEmpty) {
-      final costPerPassenger = trip.totalCost / trip.passengerCount; // Divide by all, including driver
+      final totalPaxCount = trip.passengerCount > 0 ? trip.passengerCount : (passengers.length + 1);
+      final costPerPassenger = totalPaxCount > 0 ? (trip.totalCost / totalPaxCount) : 0.0;
       
       for (final pax in passengers) {
         final paxDoc = tripDoc.collection('passengers').doc(pax.id);
@@ -221,7 +265,7 @@ class TripRepository {
 
     double impliedMileage = 0;
     double impliedFuelPrice = 0;
-    if (fuelLog.amountLiters > 0) {
+    if (fuelLog.amountLiters > 0 && originalTrip.distance > 0) {
       impliedMileage = originalTrip.distance / fuelLog.amountLiters;
       impliedFuelPrice = fuelLog.totalCost / fuelLog.amountLiters;
     }
@@ -256,7 +300,8 @@ class TripRepository {
     // 3. Update Passengers
     final paxSnapshot = await _tripsRef.doc(originalTrip.id).collection('passengers').get();
     if (paxSnapshot.docs.isNotEmpty) {
-      double newCostPerPax = newTotalTripCost / paxSnapshot.docs.length;
+      final totalPaxCount = paxSnapshot.docs.length + 1; // Including driver
+      double newCostPerPax = totalPaxCount > 0 ? (newTotalTripCost / totalPaxCount) : 0.0;
       for (var doc in paxSnapshot.docs) {
         batch.update(doc.reference, {'costShare': newCostPerPax});
       }
@@ -283,8 +328,13 @@ class TripRepository {
   }
 
   Future<void> updatePassengerPaymentStatus(String tripId, String passengerDocId, bool newStatus) async {
-    await _tripsRef.doc(tripId).collection('passengers').doc(passengerDocId).update({
+    final batch = _db.batch();
+    batch.update(_tripsRef.doc(tripId).collection('passengers').doc(passengerDocId), {
       'isPaid': newStatus,
     });
+    batch.update(_tripsRef.doc(tripId), {
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
   }
 }

@@ -17,8 +17,16 @@ class TopupSummary {
 class FuelLogCard extends StatelessWidget {
   final FuelLog log;
   final TopupSummary? summary;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
-  const FuelLogCard({super.key, required this.log, this.summary});
+  const FuelLogCard({
+    super.key,
+    required this.log,
+    this.summary,
+    this.onEdit,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -71,9 +79,48 @@ class FuelLogCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      '₹${log.totalCost.toStringAsFixed(0)}',
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: theme.primaryColor),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '₹${log.totalCost.toStringAsFixed(0)}',
+                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: theme.primaryColor),
+                        ),
+                        if (onEdit != null || onDelete != null)
+                          PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: Icon(Icons.more_vert, size: 20, color: Colors.grey.shade500),
+                            onSelected: (val) {
+                              if (val == 'edit' && onEdit != null) onEdit!();
+                              if (val == 'delete' && onDelete != null) onDelete!();
+                            },
+                            itemBuilder: (ctx) => [
+                              if (onEdit != null)
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit_outlined, size: 18),
+                                      SizedBox(width: 8),
+                                      Text('Edit'),
+                                    ],
+                                  ),
+                                ),
+                              if (onDelete != null)
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                      SizedBox(width: 8),
+                                      Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(DateFormat.yMMMd().format(log.date), style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),

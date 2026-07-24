@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../repositories/auth_repository.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -37,8 +36,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('cached_password', _passwordController.text);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = e.toString().replaceAll(RegExp(r'\[.*?\] '), ''));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ref.read(authRepositoryProvider).signInWithGoogle();
     } catch (e) {
       if (mounted) {
         setState(() => _errorMessage = e.toString().replaceAll(RegExp(r'\[.*?\] '), ''));
@@ -312,6 +326,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   child: _isLoading 
                                       ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                       : const Text('Sign In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                height: 56,
+                                child: OutlinedButton.icon(
+                                  onPressed: _isLoading ? null : _loginWithGoogle,
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.g_mobiledata_rounded, size: 32),
+                                  label: const Text('Sign In with Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                 ),
                               ),
                             ],

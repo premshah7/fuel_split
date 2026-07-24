@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import '../models/fuel_log.dart';
 import '../repositories/trip_repository.dart';
 
 class AddFuelLogScreen extends ConsumerStatefulWidget {
-  const AddFuelLogScreen({super.key});
+  final FuelLog? initialLog;
+  const AddFuelLogScreen({super.key, this.initialLog});
 
   @override
   ConsumerState<AddFuelLogScreen> createState() => _AddFuelLogScreenState();
@@ -12,10 +15,21 @@ class AddFuelLogScreen extends ConsumerStatefulWidget {
 
 class _AddFuelLogScreenState extends ConsumerState<AddFuelLogScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController();
-  final _costController = TextEditingController();
-  final _odometerController = TextEditingController();
+  late final TextEditingController _amountController;
+  late final TextEditingController _costController;
+  late final TextEditingController _odometerController;
+  late DateTime _selectedDate;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final log = widget.initialLog;
+    _amountController = TextEditingController(text: log != null ? log.amountLiters.toString() : '');
+    _costController = TextEditingController(text: log != null ? log.totalCost.toString() : '');
+    _odometerController = TextEditingController(text: log?.odometerReading != null ? log!.odometerReading!.toString() : '');
+    _selectedDate = log?.date ?? DateTime.now();
+  }
 
   @override
   void dispose() {
@@ -42,16 +56,27 @@ class _AddFuelLogScreenState extends ConsumerState<AddFuelLogScreen> {
       try {
         final repo = ref.read(tripRepositoryProvider);
         if (repo != null) {
-          await repo.addManualFuelLog(
-            amountLiters: amount,
-            totalCost: cost,
-            odometer: odometer,
-          );
+          if (widget.initialLog != null) {
+            await repo.updateManualFuelLog(
+              logId: widget.initialLog!.id,
+              amountLiters: amount,
+              totalCost: cost,
+              odometer: odometer > 0 ? odometer : null,
+              date: _selectedDate,
+            );
+          } else {
+            await repo.addManualFuelLog(
+              amountLiters: amount,
+              totalCost: cost,
+              odometer: odometer > 0 ? odometer : null,
+              date: _selectedDate,
+            );
+          }
         }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Fuel log saved successfully!')),
+            SnackBar(content: Text(widget.initialLog != null ? 'Refuel log updated successfully!' : 'Refuel log saved successfully!')),
           );
           context.pop();
         }
@@ -71,10 +96,11 @@ class _AddFuelLogScreenState extends ConsumerState<AddFuelLogScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isEditing = widget.initialLog != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Refuel', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(isEditing ? 'Edit Refuel' : 'Add Refuel', style: const TextStyle(fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () => context.pop(),
@@ -125,6 +151,27 @@ class _AddFuelLogScreenState extends ConsumerState<AddFuelLogScreen> {
                       keyboardType: TextInputType.number,
                       validator: (value) => value == null || value.isEmpty ? 'Please enter the reading' : null,
                     ),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: () async {
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (pickedDate != null) {
+                          setState(() => _selectedDate = pickedDate);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Refuel Date',
+                          prefixIcon: Icon(Icons.calendar_today_outlined),
+                        ),
+                        child: Text(DateFormat('dd/MM/yyyy').format(_selectedDate)),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -137,7 +184,7 @@ class _AddFuelLogScreenState extends ConsumerState<AddFuelLogScreen> {
                 ),
                 child: _isLoading 
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Save Refuel Log', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : Text(isEditing ? 'Update Refuel Log' : 'Save Refuel Log', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ],
           ),

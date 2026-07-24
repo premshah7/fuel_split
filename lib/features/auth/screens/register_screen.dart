@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../repositories/auth_repository.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -44,8 +43,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('cached_password', _passwordController.text);
     } catch (e) {
       if (mounted) {
         setState(() => _errorMessage = e.toString().replaceAll(RegExp(r'\[.*?\] '), ''));
