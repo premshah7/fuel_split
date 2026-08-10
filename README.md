@@ -1,65 +1,102 @@
 <div align="center">
-  <img src="assets/images/logo2.png" alt="FuelSplit Logo" width="150"/>
+ <img src="assets/images/logo2.png" alt="FuelSplit Logo" width="150"/>
   <h1>FuelSplit</h1>
-  <p>A smart and elegant Flutter application to track trips, manage passengers, and split fuel costs calculation easily and transparently.</p>
+  <p><b>A smart, elegant Flutter app to track trips, manage passengers, calculate fuel economy, and split expenses effortlessly.</b></p>
+
+  [![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)](https://flutter.dev)
+  [![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
+  [![Dart](https://img.shields.io/badge/dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
+  [![License](https://img.shields.io/badge/license-MIT-blue.style=for-the-badge)](#-license)
 </div>
 
 ---
 
-## 🚀 Features
+## 🌟 Overview
 
-* **Trip Tracking:** Easily log trips with start and end locations (via Google Maps), distance calculation, and trip dates.
-* **Passenger Management:** Add passengers quickly by importing them directly from your device contacts.
-* **Fair Cost Splitting:** Automatically calculate and distribute fuel expenses, tolls, and other costs among passengers.
-* **Interactive Dashboard:** Gain insights into your trips and expenses through beautiful, animated charts and statistics.
-* **Smart Reminders:** Send one-click payment messages/debts to passengers via WhatsApp or SMS.
-* **Data Export:** Generate and share CSV reports of your trip logs seamlessly.
-* **Authentication:** Secure sign-in with Email & Password or Google Sign-In via Firebase Auth.
-* **Polished UI/UX:** Enjoy smooth micro-animations, empty state graphics, and beautiful dark & light themes.
+**FuelSplit** is a modern Flutter application designed for vehicle owners, commuters, and road-trippers to effortlessly track trips, refuel logs, vehicle mileage, and passenger fuel cost splits.
 
-## 🛠️ Tech Stack & Dependencies
+Whether you're going on a group road trip with friends or taking a solo drive for personal use, FuelSplit automates cost calculation, passenger debt tracking, location geocoding, and WhatsApp payment reminder dispatching.
 
-* **Framework:** Flutter (>= 3.8.1)
+---
+
+## ✨ Key Features
+
+### 🚗 Trip Management & Intermediate Stops
+* **Shared & Personal Trips:** Choose between **Shared Trips** (cost split with passengers) and **Personal Trips** (100% self-funded, no passenger debt generated).
+* **Intermediate Waypoints (Stops):** Add unlimited intermediate stops between your Start Location and Destination.
+* **Route Timeline Visualizer:** Interactive 🟢 *Start* -> 🟡 *Stops* -> 🔴 *Destination* timeline displayed on trip details.
+* **Trip Type Filter Chips:** Quickly filter trips by **All**, **Shared**, or **Personal** on the home screen.
+
+### 📍 GPS Engine & Auto Distance Calculation
+* **Instant GPS Location:** Fetch current GPS location with high-accuracy positioning, timeout protection, and last-known position fallback.
+* **Dual-Layer Reverse Geocoding:** Converts GPS coordinates to readable address strings with native geocoding and OpenStreetMap Nominatim fallback.
+* **Auto Route Distance:** Auto-calculate actual driving distance (in km) across all route stops using GPS coordinates.
+
+### 👥 Passenger Management & Real-Time Contact Sync
+* **Device Contacts Import:** Import crew members directly from your phone's contact list.
+* **Real-Time Auto-Sync:** Passenger names automatically update when edited in phone contacts and cascade across all existing trip records, debt summaries, and payments.
+* **WhatsApp Payment Receipts:** Send formatted payment reminder receipts directly to passengers via WhatsApp with one tap.
+
+### 💳 Payments & Debt Settlement
+* **Unsettled Debts Dashboard:** Real-time stream of all passenger debts.
+* **Trip Date & Direct Navigation:** Debt cards display formatted trip dates and support tap-to-navigate directly to the corresponding trip details screen.
+* **Payment Status Toggles:** Mark individual passenger shares as paid/unpaid in real time.
+
+### ⛽ Refuel Logs & Mileage Tracking
+* **Refuel Log History:** Record manual refuels (fuel volume, cost, odometer, date).
+* **Refuel Log Edit & Date Picker:** Edit existing refuel entries and select custom refuel dates.
+* **Vehicle Mileage (km/L):** Tracks vehicle fuel efficiency across both shared and personal trips.
+
+### 🔐 Authentication & Security
+* **Firebase Authentication:** Email/Password sign-in & Google Sign-In integration.
+* **Secure Storage:** Password privacy enforcement without local plaintext credential caching.
+
+---
+
+## 🛠️ Tech Stack
+
+* **Framework:** Flutter 3.8+ (Dart 3)
 * **State Management:** Riverpod (`flutter_riverpod`)
-* **Routing:** GoRouter (`go_router`)
-* **Backend:** Firebase (Authentication, Firestore, Google Sign-in)
-* **Local Storage:** Drift & SQLite (`drift`, `sqlite3_flutter_libs`)
-* **Location & Maps:** Google Maps Flutter, Geolocator, Geocoding
-* **UI Utilities:** FL Chart, Flutter Animate, Google Fonts, Cupertino Icons
-* **Device APIs:** Flutter Contacts, Permission Handler, URL Launcher, Share Plus
+* **Routing:** GoRouter (`go_router`) with custom modal and fade transitions
+* **Backend:** Firebase Authentication, Cloud Firestore
+* **Location & Maps:** Geolocator, Geocoding, OpenStreetMap (Photon API)
+* **UI/UX Aesthetics:** Custom Light & Dark Themes, Micro-animations (`flutter_animate`), Google Fonts (`Inter`), Glassmorphism, Haptic Feedback
+* **Device APIs:** Device Contacts (`flutter_contacts`), URL Launcher, Permission Handler
+
+---
 
 ## 📁 Project Structure
-
-This project follows a feature-centric (feature-driven) folder structure, ensuring high modularity and maintainability:
 
 ```text
 lib/
 ├── core/
-│   ├── router/          # GoRouter configurations and routes
-│   ├── theme/           # App themes, colors (Light/Dark mode)
-│   └── utils/           # Shared helpers (URL launcher, Firebase utils, Contact helpers)
+│   ├── router/          # GoRouter configurations and custom page transitions
+│   ├── theme/           # App design system, color palette, dark & light themes
+│   └── utils/           # Location helper, Contact helper, URL launcher, Firebase utils
 └── features/
-    ├── auth/            # Authentication (Sign In, Register, Google Sign-In)
+    ├── auth/            # Sign In, Register, Profile, Google Sign-In
     ├── dashboard/       # Charts, expense statistics, user dashboard
-    ├── home/            # Main navigation shell, bottom app bar
-    ├── passengers/      # Passenger management, contact import
-    ├── payments/        # Debt collection, payment statuses
-    └── trips/           # Trip logs, map integrations, detail screens
+    ├── home/            # Main navigation shell & bottom navigation bar
+    ├── passengers/      # Passenger directory, contact auto-sync, cascading updates
+    ├── payments/        # Settlement tracking, debt stream, WhatsApp receipts
+    └── trips/           # Trip logs, intermediate stops, personal trips, refuel logs
 ```
+
+---
 
 ## ⚙️ Getting Started
 
 ### Prerequisites
 
-* [Flutter SDK](https://docs.flutter.dev/get-started/install) installed.
-* Supported IDEs (VS Code, Android Studio, IntelliJ IDEA) with Flutter extensions.
-* A configured Firebase project.
+* [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.8.0 or higher)
+* Android Studio / VS Code with Flutter extension
+* Configured Firebase Project
 
 ### Installation & Setup
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/premshah7/fuel_split.git
    cd fuel_split
    ```
 
@@ -69,31 +106,20 @@ lib/
    ```
 
 3. **Configure Firebase:**
-   Since this project uses Firebase Authentication and Firestore, you'll need to set up Firebase via the Firebase CLI or manually by placing the configuration files:
    - **Android:** Place your `google-services.json` in `android/app/`.
    - **iOS:** Place your `GoogleService-Info.plist` in `ios/Runner/`.
 
-   *(Optional: If you use `flutterfire_cli`, run `flutterfire configure` at the project root)*
-
-4. **Code Generation:**
-   This app uses `drift` and `freezed` which rely on code generation. Generate the necessary files safely by running:
+4. **Run Code Analysis:**
    ```bash
-   flutter pub run build_runner build --delete-conflicting-outputs
+   flutter analyze
    ```
 
 5. **Run the Application:**
-   Start your emulator or plug in your physical device, then run:
    ```bash
    flutter run
    ```
 
-## 📸 Screenshots (Placeholders)
-
-> *(You can add real screenshots of your application here to showcase its design and features!)*
-
-* `Dashboard screen showing expense distribution charts.`
-* `Trip detail screen with smoothly animated transitions.`
-* `Passenger import UI connecting seamlessly with device contacts.`
+---
 
 ## 🛡️ License
 
